@@ -62,6 +62,15 @@ export const PAL = {
   paper: 0xcfc4ab,
   glass: 0x7fb8dd,
   void: 0x05080d,
+  // Crew accents, mirroring the marker colors in js/crew.js so a berth in
+  // the Crew Quarters reads as belonging to the person standing elsewhere
+  // on the ship. Dessa's is the amber already in this palette, so only
+  // four of the five cost an extra merged bucket.
+  crewDessa: 0xd9a441,
+  crewKaia: 0x6f8fb0,
+  crewCorwin: 0xb0562f,
+  crewAmara: 0x7fae7a,
+  crewMarcus: 0x5a5f66,
 };
 
 const IDENTITY = new THREE.Matrix4();
@@ -647,6 +656,79 @@ export function warningSign(b, o) {
     p.box({ w: s * 0.62, h: s * 0.62, d: 0.015, z: 0.02, rotZ: Math.PI / 4, color: PAL.hazard });
     p.box({ w: s * 0.07, h: s * 0.22, d: 0.012, y: s * 0.04, z: 0.03, color: PAL.amber });
     p.box({ w: s * 0.07, h: s * 0.07, d: 0.012, y: -s * 0.14, z: 0.03, color: PAL.amber });
+  });
+}
+
+// A crew berth: stowage plinth, mattress, blanket in the occupant's accent
+// color, padded head panel, privacy fins either side, and a canopy shelf
+// with a reading lamp under it.
+//
+// Authored lying along X (2m head-to-foot, head at -X) and open toward +Z,
+// so a wall-mounted berth is placed with the rotY that turns its open side
+// into the room. `curtain` is how far the privacy curtain is drawn across
+// the opening, 0 to 1 — the cheapest way to say something about whoever
+// sleeps there.
+export function berth(b, o) {
+  const accent = o.accent === undefined ? PAL.fabric : o.accent;
+  const curtain = o.curtain === undefined ? 0 : o.curtain;
+  b.at(o, (p) => {
+    // Stowage plinth with two drawer fronts, the berth's own footlockers.
+    p.box({ w: 2.0, h: 0.34, d: 0.85, y: 0.17, color: PAL.panel });
+    p.box({ w: 2.04, h: 0.07, d: 0.89, y: 0.035, color: PAL.hullDark });
+    for (const x of [-0.5, 0.5]) {
+      p.box({ w: 0.86, h: 0.22, d: 0.03, x, y: 0.19, z: 0.43, color: PAL.trim });
+      p.box({ w: 0.24, h: 0.04, d: 0.04, x, y: 0.19, z: 0.46, color: PAL.steel });
+    }
+
+    // Mattress, blanket, pillow. The blanket is the accent.
+    p.box({ w: 1.92, h: 0.16, d: 0.78, y: 0.42, color: PAL.hullLight });
+    p.box({ w: 1.24, h: 0.11, d: 0.8, x: 0.32, y: 0.53, color: accent });
+    p.box({ w: 0.1, h: 0.12, d: 0.8, x: -0.3, y: 0.54, color: accent });
+    p.box({ w: 0.44, h: 0.14, d: 0.52, x: -0.72, y: 0.55, color: PAL.paper });
+
+    // Padded head panel against the wall, plus privacy fins at each end.
+    p.box({ w: 2.0, h: 1.05, d: 0.06, y: 0.87, z: -0.42, color: PAL.hullDark });
+    for (let i = 0; i < 4; i++) {
+      p.box({ w: 1.86, h: 0.04, d: 0.03, y: 0.55 + i * 0.19, z: -0.38, color: PAL.panel });
+    }
+    for (const sx of [-1, 1]) {
+      p.box({ w: 0.08, h: 1.12, d: 0.85, x: sx * 0.99, y: 0.76, color: PAL.trim });
+    }
+
+    // Canopy shelf over the bunk with a lip so stowed items read from above.
+    p.box({ w: 2.0, h: 0.08, d: 0.72, y: 1.36, z: -0.06, color: PAL.hull });
+    p.box({ w: 2.0, h: 0.09, d: 0.04, y: 1.44, z: 0.28, color: PAL.trim });
+    p.box({ w: 0.06, h: 0.62, d: 0.06, x: -0.97, y: 1.05, z: 0.3, color: PAL.steelDark });
+    p.box({ w: 0.06, h: 0.62, d: 0.06, x: 0.97, y: 1.05, z: 0.3, color: PAL.steelDark });
+
+    // Reading lamp tucked under the canopy at the head end.
+    p.cyl({ r: 0.07, rTop: 0.04, h: 0.09, x: -0.66, y: 1.27, z: -0.12, seg: 8, color: PAL.steelDark });
+    p.cyl({
+      r: 0.055,
+      h: 0.02,
+      x: -0.66,
+      y: 1.22,
+      z: -0.12,
+      seg: 8,
+      color: PAL.amber,
+      emissive: PAL.amber,
+      emissiveIntensity: 2.0,
+    });
+
+    // Name plate on the foot-end fin, plus a stripe lying flat along the
+    // canopy's front edge. The plate is for anyone standing in the aisle;
+    // the stripe is for the camera, which looks down on the room and would
+    // otherwise see the accent color edge-on or not at all.
+    p.box({ w: 0.03, h: 0.1, d: 0.34, x: 1.03, y: 1.0, color: accent });
+    p.plate({ w: 1.72, d: 0.09, y: 1.41, z: 0.19, color: accent });
+
+    // Curtain rail, and however much curtain is pulled across.
+    p.cyl({ r: 0.02, h: 1.96, y: 1.3, z: 0.36, rotZ: Math.PI / 2, color: PAL.steel });
+    if (curtain > 0) {
+      const w = 1.9 * curtain;
+      p.box({ w, h: 0.92, d: 0.05, x: -0.95 + w / 2, y: 0.83, z: 0.36, color: PAL.fabric });
+      p.box({ w, h: 0.05, d: 0.06, x: -0.95 + w / 2, y: 1.26, z: 0.36, color: PAL.hullDark });
+    }
   });
 }
 

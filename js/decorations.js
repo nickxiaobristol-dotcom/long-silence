@@ -1,6 +1,7 @@
 import {
   PAL,
   PropBuilder,
+  berth,
   buttonGrid,
   crate,
   crewSeat,
@@ -52,6 +53,8 @@ const DOORWAYS = [
   { x: 8, z: 0, span: 2.4, axis: "z" }, // Engine Room west
   { x: 0, z: -5, span: 2.4, axis: "x" }, // Common Area south
   { x: 0, z: -9, span: 2.4, axis: "x" }, // Cargo Bay north
+  { x: 0, z: 5, span: 2.4, axis: "x" }, // Common Area north
+  { x: 0, z: 9, span: 2.4, axis: "x" }, // Crew Quarters south
 ];
 
 function doorHeaders(b) {
@@ -484,13 +487,15 @@ function messTable(b) {
     p.cyl({ r: 0.045, h: 0.24, x: 0.78, y: 0.93, z: 0.06, color: PAL.screenGreen });
     p.cyl({ r: 0.022, h: 0.07, x: 0.78, y: 1.08, z: 0.06, color: PAL.hazard });
 
-    // Bench on the wall side, stools on the room side.
-    p.box({ w: 1.9, h: 0.09, d: 0.42, y: 0.45, z: 0.8, color: PAL.wood });
+    // Bench on the wall side, stools on the room side. The bench tucks a
+    // little further under the table than it used to: its old position put
+    // its north edge inside the Quarters Corridor's overlap into this room.
+    p.box({ w: 1.9, h: 0.09, d: 0.42, y: 0.45, z: 0.62, color: PAL.wood });
     for (const x of [-0.76, 0.76]) {
-      p.box({ w: 0.1, h: 0.45, d: 0.34, x, y: 0.225, z: 0.8, color: PAL.steelDark });
+      p.box({ w: 0.1, h: 0.45, d: 0.34, x, y: 0.225, z: 0.62, color: PAL.steelDark });
     }
     // A jacket slung over the bench end.
-    p.box({ w: 0.3, h: 0.34, d: 0.14, x: 0.82, y: 0.62, z: 0.78, rotZ: 0.18, color: PAL.fabricWarm });
+    p.box({ w: 0.3, h: 0.34, d: 0.14, x: 0.82, y: 0.62, z: 0.6, rotZ: 0.18, color: PAL.fabricWarm });
     // Boots kicked off underneath.
     for (const dx of [0, 0.17]) {
       p.box({ w: 0.13, h: 0.13, d: 0.3, x: -0.38 + dx, y: 0.065, z: -0.42, rotY: 0.3 + dx, color: PAL.hullDark });
@@ -574,11 +579,14 @@ function crewLockers(b) {
   // That's a cheap loss compared to the galley they traded places with:
   // lockers read as a bank of tall volumes from above, and the one left
   // standing open shows its contents regardless of which way it faces.
+  //
+  // Split into two pairs flanking the hatch to the Crew Quarters, which
+  // took the middle of this wall (x in [-1, 1]) when berthing was added.
   const faces = [PAL.panel, PAL.hullLight, PAL.panel, PAL.hull];
-  [-0.9, -0.1, 0.7, 1.5].forEach((x, i) => {
+  [-2.6, -1.8, 1.8, 2.6].forEach((x, i) => {
     b.at({ x, z: 4.58, rotY: -HALF_PI }, (p) => {
       p.box({ w: 0.5, h: 1.75, d: 0.76, y: 0.875, color: faces[i] });
-      if (i === 2) {
+      if (i === 3) {
         // One locker standing open: swung door, hung jacket, shelf.
         p.at({ x: -0.26, z: -0.35, rotY: -0.75 }, (q) => {
           q.box({ w: 0.04, h: 1.62, d: 0.7, y: 0.875, z: 0.35, color: PAL.hullLight });
@@ -598,13 +606,17 @@ function crewLockers(b) {
       p.box({ w: 0.54, h: 0.08, d: 0.8, y: 0.04, color: PAL.hullDark });
     });
   });
-  b.box({ w: 3.34, h: 0.06, d: 0.56, x: 0.3, y: 1.79, z: 4.58, color: PAL.trim });
+  // One capping rail per pair rather than one spanning rail, which would
+  // otherwise run straight across the hatch at head height.
+  for (const x of [-2.2, 2.2]) {
+    b.box({ w: 1.72, h: 0.06, d: 0.56, x, y: 1.79, z: 4.58, color: PAL.trim });
+  }
 
-  // Kit piled at the end of the bank.
-  b.box({ w: 0.64, h: 0.32, d: 0.44, x: -1.75, y: 0.17, z: 4.42, rotY: 0.22, color: PAL.fabric });
-  b.box({ w: 0.12, h: 0.05, d: 0.46, x: -1.75, y: 0.3, z: 4.42, rotY: 0.22, color: PAL.amber });
+  // Kit piled at the end of the bank, stood off the locker faces.
+  b.box({ w: 0.64, h: 0.32, d: 0.44, x: -2.2, y: 0.17, z: 4.0, rotY: 0.22, color: PAL.fabric });
+  b.box({ w: 0.12, h: 0.05, d: 0.46, x: -2.2, y: 0.3, z: 4.0, rotY: 0.22, color: PAL.amber });
   for (const dx of [0, 0.17]) {
-    b.box({ w: 0.29, h: 0.13, d: 0.13, x: 1.95 + dx, y: 0.065, z: 4.3, rotY: -0.25, color: PAL.hullDark });
+    b.box({ w: 0.29, h: 0.13, d: 0.13, x: 1.95 + dx, y: 0.065, z: 4.05, rotY: -0.25, color: PAL.hullDark });
   }
 }
 
@@ -769,10 +781,13 @@ function buildCommonArea(b) {
   });
 
   // String lights across the north wall — the room's most obviously
-  // human-added detail.
+  // human-added detail. The run still spans the whole wall, but the bulbs
+  // skip the span over the Crew Quarters hatch: the wire itself clears a
+  // walking head, the bulbs hanging off it would not.
   b.box({ w: 5.0, h: 0.02, d: 0.02, x: 0.9, y: 2.18, z: 4.78, color: PAL.hullDark });
   for (let i = 0; i < 11; i++) {
     const x = -1.5 + i * 0.48;
+    if (Math.abs(x) < 1.3) continue;
     b.box({ w: 0.014, h: 0.08, d: 0.014, x, y: 2.14, z: 4.78, color: PAL.hullDark });
     b.sphere({
       r: 0.048,
@@ -1321,11 +1336,378 @@ function buildCargoBay(b) {
   ceilingStrip(b, { axis: "z", x: 4.72, z: -12.0, length: 4.4 });
 }
 
+// ---------------------------------------------------------------------------
+// Crew Quarters — x: -4..4, z: 9..15. Doorway south (z = 9, x in [-1, 1]).
+// Five berths, one per crew member: two down each side wall, the captain's
+// across the aft end. Nobody is *placed* in here — every crew member's
+// position in crew.js is where the dialogue system expects to find them —
+// so the room has to say who sleeps where on its own. Each berth carries a
+// blanket and a plate in that crew member's marker color plus a few props
+// drawn from CREW.md, and the contrast between them is the point: Kaia's is
+// squared away, Corwin's has the job he's halfway through still on it,
+// Marcus's curtain is nearly shut.
+//
+// Berths go against the walls with their openings onto the aisle because
+// this camera looks down and toward -Z: an open berth then reads as a lit
+// box you can see into from above. Anything with a face worth seeing — the
+// wash station, the duty board — goes on the south wall, the one that
+// faces back toward the camera.
+// ---------------------------------------------------------------------------
+
+function washStation(b) {
+  b.at({ x: -2.6, z: 9.3 }, (p) => {
+    p.box({ w: 1.9, h: 0.86, d: 0.56, y: 0.43, color: PAL.panel });
+    p.box({ w: 1.94, h: 0.08, d: 0.6, y: 0.04, color: PAL.hullDark });
+    p.box({ w: 1.98, h: 0.07, d: 0.62, y: 0.89, color: PAL.steel });
+
+    // Two basins with folded-arm taps.
+    for (const x of [-0.46, 0.46]) {
+      p.box({ w: 0.54, h: 0.05, d: 0.42, x, y: 0.9, color: PAL.trim });
+      p.box({ w: 0.46, h: 0.11, d: 0.34, x, y: 0.86, color: PAL.hullDark });
+      p.cyl({ r: 0.026, h: 0.26, x, y: 1.05, z: -0.16, color: PAL.steel });
+      p.box({ w: 0.028, h: 0.028, d: 0.2, x, y: 1.17, z: -0.07, color: PAL.steel });
+    }
+
+    // Mirror panel above, angled a touch off the wall so it catches light
+    // rather than reading as a flat dark rectangle.
+    p.box({ w: 1.8, h: 0.78, d: 0.05, y: 1.52, z: -0.22, rotX: 0.06, color: PAL.hullDark });
+    p.box({ w: 1.68, h: 0.66, d: 0.02, y: 1.52, z: -0.18, rotX: 0.06, color: PAL.glass, opacity: 0.5 });
+    p.box({
+      w: 1.72,
+      h: 0.05,
+      d: 0.06,
+      y: 1.94,
+      z: -0.2,
+      color: PAL.paper,
+      emissive: PAL.paper,
+      emissiveIntensity: 1.2,
+    });
+
+    // Toiletries crowded onto the counter, and a towel rail with towels.
+    const rand = seeded(12);
+    for (let i = 0; i < 6; i++) {
+      p.cyl({
+        r: 0.035 + rand() * 0.02,
+        h: 0.1 + rand() * 0.09,
+        x: -0.86 + rand() * 1.7,
+        y: 0.97,
+        z: 0.14,
+        seg: 8,
+        color: [PAL.crewKaia, PAL.paper, PAL.crewAmara, PAL.rust][i % 4],
+      });
+    }
+    p.cyl({ r: 0.018, h: 1.5, y: 1.16, z: 0.3, rotZ: Math.PI / 2, color: PAL.steel });
+    [PAL.fabric, PAL.fabricWarm, PAL.paper].forEach((color, i) => {
+      p.box({ w: 0.36, h: 0.44, d: 0.06, x: -0.62 + i * 0.62, y: 0.93, z: 0.3, color });
+    });
+  });
+}
+
+function dutyBoard(b) {
+  b.at({ x: 2.5, z: 9.22 }, (p) => {
+    // Board face. It sits on the south wall, so it faces back at the
+    // camera — the one wall in here where flat signage is worth having.
+    p.box({ w: 2.0, h: 1.2, d: 0.06, y: 1.5, color: PAL.hullDark });
+    p.box({ w: 1.88, h: 1.08, d: 0.02, y: 1.5, z: 0.04, color: PAL.panel });
+    p.box({
+      w: 1.88,
+      h: 0.12,
+      d: 0.015,
+      y: 1.94,
+      z: 0.05,
+      color: PAL.screenAmber,
+      emissive: PAL.glowAmber,
+      emissiveIntensity: 1.1,
+    });
+
+    // A row card per crew member, in their color, with a watch bar beside
+    // it — the roster, in the same order the crew list is written.
+    const crew = [PAL.crewDessa, PAL.crewKaia, PAL.crewCorwin, PAL.crewAmara, PAL.crewMarcus];
+    crew.forEach((color, i) => {
+      const y = 1.78 - i * 0.19;
+      p.box({ w: 0.16, h: 0.12, d: 0.015, x: -0.78, y, z: 0.05, color });
+      p.box({ w: 0.5, h: 0.035, d: 0.012, x: -0.42, y, z: 0.05, color: PAL.paper });
+      p.box({
+        w: 0.34 + (i % 3) * 0.16,
+        h: 0.05,
+        d: 0.012,
+        x: 0.38 + (i % 3) * 0.08,
+        y,
+        z: 0.05,
+        color: i % 2 ? PAL.glowGreen : PAL.steel,
+      });
+    });
+
+    // Pinned notices curling off the bottom edge.
+    const rand = seeded(24);
+    for (let i = 0; i < 4; i++) {
+      p.box({
+        w: 0.2,
+        h: 0.26,
+        d: 0.012,
+        x: -0.7 + rand() * 1.5,
+        y: 0.72 + rand() * 0.12,
+        z: 0.06,
+        rotZ: -0.16 + rand() * 0.32,
+        color: rand() > 0.5 ? PAL.paper : PAL.amber,
+      });
+    }
+  });
+
+  // Water urn and mugs on a stand beside the board.
+  b.at({ x: 3.62, z: 9.5 }, (p) => {
+    p.box({ w: 0.62, h: 0.82, d: 0.5, y: 0.41, color: PAL.panel });
+    p.box({ w: 0.66, h: 0.06, d: 0.54, y: 0.85, color: PAL.steel });
+    p.cyl({ r: 0.19, h: 0.44, y: 1.1, color: PAL.steelDark });
+    p.cyl({ r: 0.2, h: 0.05, y: 1.34, color: PAL.steel });
+    p.cyl({ r: 0.04, h: 0.09, y: 0.93, z: 0.19, rotX: Math.PI / 2, color: PAL.steel });
+    p.box({ w: 0.1, h: 0.12, d: 0.02, y: 1.12, z: 0.19, color: PAL.redGlow });
+    for (let i = 0; i < 3; i++) {
+      p.cyl({ r: 0.05, h: 0.1, x: -0.2 + i * 0.14, y: 0.93, z: -0.12, color: PAL.paper });
+    }
+  });
+}
+
+// A berth plus whatever its occupant leaves lying around it. `personal` is
+// called in the berth's own local frame (long axis X, head at -X, opening
+// toward +Z) so per-crew props can be authored once and land correctly
+// whichever wall the berth is bolted to.
+function crewBerth(b, o, personal) {
+  b.at({ x: o.x, z: o.z, rotY: o.rotY }, (p) => {
+    berth(p, { accent: o.accent, curtain: o.curtain });
+    personal(p);
+  });
+}
+
+function buildCrewQuarters(b) {
+  // Kaia — ex-Ridgeline, still keeps a service bunk. Helmet squared away
+  // on the shelf, flight suit folded, checklist within reach, and the
+  // squadron patch face-down where she doesn't have to look at it.
+  crewBerth(
+    b,
+    { x: -3.5, z: 11.0, rotY: HALF_PI, accent: PAL.crewKaia, curtain: 0 },
+    (p) => {
+      p.sphere({ r: 0.15, x: -0.6, y: 1.54, z: -0.08, color: PAL.hullLight });
+      p.box({ w: 0.2, h: 0.1, d: 0.24, x: -0.5, y: 1.52, z: -0.02, color: PAL.screenBlue });
+      for (let i = 0; i < 3; i++) {
+        p.box({ w: 0.42, h: 0.05, d: 0.34, x: 0.1, y: 1.44 + i * 0.05, z: -0.06, color: i % 2 ? PAL.crewKaia : PAL.fabric });
+      }
+      p.box({ w: 0.3, h: 0.02, d: 0.22, x: 0.72, y: 1.42, z: -0.1, color: PAL.steelDark });
+      p.box({ w: 0.26, h: 0.015, d: 0.18, x: 0.72, y: 1.44, z: -0.1, color: PAL.paper });
+      p.box({ w: 0.26, h: 0.02, d: 0.2, x: 0.5, y: 0.65, z: 0.12, rotY: 0.2, color: PAL.steelDark });
+      p.box({ w: 0.22, h: 0.012, d: 0.16, x: 0.5, y: 0.665, z: 0.12, rotY: 0.2, color: PAL.paper });
+      p.cyl({ r: 0.07, h: 0.012, x: -0.24, y: 1.41, z: 0.1, seg: 8, color: PAL.hullDark });
+    }
+  );
+
+  // Corwin — Drift loyalist, Belt-born, and constitutionally incapable of
+  // finishing a job before he brings it to bed. Toolroll open on the
+  // plinth, a stripped pump on the blanket, Drift colors pinned up.
+  crewBerth(
+    b,
+    { x: -3.5, z: 13.4, rotY: HALF_PI, accent: PAL.crewCorwin, curtain: 0.15 },
+    (p) => {
+      p.box({ w: 0.72, h: 0.03, d: 0.3, x: 0.34, y: 0.6, z: 0.16, rotY: -0.12, color: PAL.wood });
+      for (let i = 0; i < 5; i++) {
+        p.box({
+          w: 0.045,
+          h: 0.035,
+          d: 0.24,
+          x: 0.08 + i * 0.13,
+          y: 0.63,
+          z: 0.16,
+          rotY: -0.12,
+          color: i % 2 ? PAL.steel : PAL.steelDark,
+        });
+      }
+      p.cyl({ r: 0.1, h: 0.22, x: -0.24, y: 0.7, z: -0.06, rotZ: Math.PI / 2, color: PAL.copper });
+      p.cyl({ r: 0.12, h: 0.04, x: -0.13, y: 0.7, z: -0.06, rotZ: Math.PI / 2, color: PAL.steelDark });
+      p.box({ w: 0.16, h: 0.05, d: 0.16, x: -0.44, y: 0.62, z: 0.04, rotY: 0.5, color: PAL.rust });
+      // Drift banner pinned flat to the head panel.
+      p.box({ w: 0.52, h: 0.36, d: 0.02, x: -0.5, y: 1.08, z: -0.38, color: PAL.crewCorwin });
+      p.box({ w: 0.46, h: 0.06, d: 0.012, x: -0.5, y: 1.16, z: -0.36, color: PAL.paper });
+      p.box({ w: 0.2, h: 0.06, d: 0.012, x: -0.58, y: 1.02, z: -0.36, color: PAL.hullDark });
+      // Mug and a coil of spare cable on the shelf.
+      p.cyl({ r: 0.055, h: 0.11, x: 0.46, y: 1.46, z: -0.1, color: PAL.paper });
+      p.torus({ r: 0.13, tube: 0.035, x: -0.06, y: 1.44, z: -0.08, rotX: HALF_PI, color: PAL.hazard });
+      p.box({ w: 0.3, h: 0.14, d: 0.24, x: 0.78, y: 1.48, z: -0.06, color: PAL.crateC });
+    }
+  );
+
+  // Amara — Compact refugee, medic, quartermaster. The plant is the point:
+  // her family lost a block's water allocation to a filing error, and she
+  // spends some of hers keeping a living thing alive.
+  crewBerth(
+    b,
+    { x: 3.5, z: 11.0, rotY: -HALF_PI, accent: PAL.crewAmara, curtain: 0.35 },
+    (p) => {
+      p.cyl({ r: 0.1, rTop: 0.13, h: 0.16, x: -0.62, y: 1.48, z: -0.12, seg: 8, color: PAL.rust });
+      p.cyl({ r: 0.12, h: 0.02, x: -0.62, y: 1.56, z: -0.12, seg: 8, color: PAL.wood });
+      for (let i = 0; i < 5; i++) {
+        p.at({ x: -0.62, y: 1.57, z: -0.12, rotY: i * 1.26 }, (q) => {
+          q.box({ w: 0.06, h: 0.26, d: 0.13, x: 0.07, y: 0.13, rotZ: -0.5, color: i % 2 ? PAL.plant : PAL.plantDark });
+        });
+      }
+      // Med kit, with the cross facing out into the aisle.
+      p.box({ w: 0.34, h: 0.22, d: 0.26, x: 0.16, y: 1.51, z: -0.04, color: PAL.paper });
+      p.box({ w: 0.16, h: 0.05, d: 0.014, x: 0.16, y: 1.51, z: 0.1, color: PAL.redGlow });
+      p.box({ w: 0.05, h: 0.16, d: 0.014, x: 0.16, y: 1.51, z: 0.1, color: PAL.redGlow });
+      // Books she actually reads, and the inventory slate she never puts down.
+      for (let i = 0; i < 4; i++) {
+        p.box({
+          w: 0.2,
+          h: 0.045,
+          d: 0.28,
+          x: 0.72,
+          y: 1.425 + i * 0.045,
+          z: -0.08,
+          rotY: 0.06 * i,
+          color: [PAL.crewAmara, PAL.paper, PAL.fabricWarm, PAL.crateC][i],
+        });
+      }
+      p.box({
+        w: 0.26,
+        h: 0.02,
+        d: 0.2,
+        x: -0.46,
+        y: 0.65,
+        z: 0.1,
+        rotY: -0.3,
+        color: PAL.screenGreen,
+        emissive: PAL.glowGreen,
+        emissiveIntensity: 0.8,
+      });
+    }
+  );
+
+  // Marcus — the berth that says the least, which is the tell. Curtain
+  // nearly shut, one locked case, a handset, and nothing on the shelf that
+  // tells you a single thing about him.
+  crewBerth(
+    b,
+    { x: 3.5, z: 13.4, rotY: -HALF_PI, accent: PAL.crewMarcus, curtain: 0.78 },
+    (p) => {
+      p.box({ w: 0.6, h: 0.26, d: 0.42, x: 0.52, y: 1.53, z: -0.1, color: PAL.hullDark });
+      p.box({ w: 0.62, h: 0.05, d: 0.44, x: 0.52, y: 1.64, z: -0.1, color: PAL.steelDark });
+      p.box({ w: 0.1, h: 0.08, d: 0.06, x: 0.24, y: 1.52, z: -0.1, color: PAL.steel });
+      p.box({ w: 0.07, h: 0.1, d: 0.05, x: 0.52, y: 1.5, z: 0.12, color: PAL.amber });
+      p.box({ w: 0.1, h: 0.06, d: 0.2, x: -0.66, y: 1.44, z: -0.1, color: PAL.hullDark });
+      p.cyl({ r: 0.016, h: 0.16, x: -0.66, y: 1.54, z: -0.16, rotX: -0.3, color: PAL.steel });
+      p.box({
+        w: 0.05,
+        h: 0.03,
+        d: 0.05,
+        x: -0.66,
+        y: 1.48,
+        z: -0.02,
+        color: PAL.redGlow,
+        emissive: PAL.redGlow,
+        emissiveIntensity: 1.6,
+      });
+    }
+  );
+
+  // Dessa — eleven years of owning this ship, aft berth, door facing the
+  // room so she can see who comes in. A bottle, one glass, the ledger, and
+  // a Compact service pin she has never quite managed to throw away.
+  crewBerth(
+    b,
+    { x: 0, z: 14.5, rotY: Math.PI, accent: PAL.crewDessa, curtain: 0.2 },
+    (p) => {
+      p.cyl({ r: 0.055, h: 0.26, x: -0.52, y: 1.53, z: -0.08, color: PAL.crateA });
+      p.cyl({ r: 0.025, h: 0.08, x: -0.52, y: 1.7, z: -0.08, color: PAL.hazard });
+      p.cyl({ r: 0.042, h: 0.09, x: -0.36, y: 1.445, z: -0.06, color: PAL.glass, opacity: 0.55 });
+      p.box({ w: 0.28, h: 0.07, d: 0.36, x: 0.12, y: 1.435, z: -0.06, rotY: 0.1, color: PAL.wood });
+      p.box({ w: 0.26, h: 0.02, d: 0.34, x: 0.12, y: 1.48, z: -0.06, rotY: 0.1, color: PAL.paper });
+      // Ship's registration plate over the head of the bunk.
+      p.box({ w: 0.56, h: 0.2, d: 0.02, x: -0.42, y: 1.14, z: -0.38, color: PAL.steelDark });
+      p.box({ w: 0.44, h: 0.05, d: 0.012, x: -0.42, y: 1.17, z: -0.36, color: PAL.crewDessa });
+      p.box({ w: 0.3, h: 0.03, d: 0.012, x: -0.46, y: 1.09, z: -0.36, color: PAL.paper });
+      // The pin, on its own, not displayed so much as not discarded.
+      p.cyl({ r: 0.035, h: 0.012, x: 0.62, y: 1.41, z: -0.14, seg: 8, color: PAL.steel });
+      p.cyl({ r: 0.02, h: 0.014, x: 0.62, y: 1.42, z: -0.14, seg: 6, color: PAL.glowBlue });
+      p.box({ w: 0.34, h: 0.16, d: 0.26, x: 0.64, y: 0.66, z: 0.1, rotY: -0.2, color: PAL.fabricWarm });
+    }
+  );
+
+  washStation(b);
+  dutyBoard(b);
+
+  // Off-watch table in the middle of the aisle, well clear of the hatch.
+  b.at({ x: -1.15, z: 12.4 }, (p) => {
+    p.box({ w: 1.0, h: 0.07, d: 0.86, y: 0.74, color: PAL.steel });
+    p.box({ w: 0.86, h: 0.02, d: 0.72, y: 0.785, color: PAL.wood });
+    p.cyl({ r: 0.09, h: 0.72, y: 0.36, color: PAL.steelDark });
+    p.cyl({ r: 0.3, h: 0.05, y: 0.025, seg: 8, color: PAL.steelDark });
+    // Someone's half-finished hand of cards and a cooling mug.
+    const rand = seeded(58);
+    for (let i = 0; i < 5; i++) {
+      p.box({
+        w: 0.085,
+        h: 0.006,
+        d: 0.125,
+        x: -0.24 + rand() * 0.44,
+        y: 0.8 + i * 0.005,
+        z: -0.2 + rand() * 0.4,
+        rotY: rand() * 2.4,
+        color: PAL.paper,
+      });
+    }
+    p.cyl({ r: 0.05, h: 0.1, x: 0.3, y: 0.845, z: 0.22, color: PAL.crewCorwin });
+  });
+  stool(b, { x: -1.9, z: 12.0, rotY: 0.6 });
+  stool(b, { x: -0.5, z: 12.9, rotY: -0.7, seat: PAL.fabricWarm });
+
+  // Laundry line strung across the aisle, north of the hatch approach.
+  b.box({ w: 4.4, h: 0.02, d: 0.02, x: 0, y: 2.16, z: 10.4, color: PAL.hullDark });
+  const wash = seeded(37);
+  for (let i = 0; i < 5; i++) {
+    const x = -1.7 + i * 0.85;
+    b.box({
+      w: 0.3,
+      h: 0.42 + wash() * 0.2,
+      d: 0.05,
+      x,
+      y: 1.88,
+      z: 10.4,
+      rotZ: -0.1 + wash() * 0.2,
+      color: [PAL.fabric, PAL.paper, PAL.fabricWarm, PAL.crewKaia, PAL.fabric][i],
+    });
+    b.box({ w: 0.05, h: 0.05, d: 0.04, x, y: 2.13, z: 10.4, color: PAL.steel });
+  }
+
+  // Floor: a worn path in from the hatch, a deck hatch, scuffs by the
+  // busiest berths.
+  b.box({ w: 1.5, h: 0.02, d: 4.6, x: 0, y: 0.011, z: 11.4, color: 0x2f333d });
+  b.box({ w: 5.2, h: 0.02, d: 1.2, x: 0, y: 0.011, z: 13.6, color: 0x2f333d });
+  b.box({ w: 0.45, h: 0.025, d: 1.5, x: 0, y: 0.014, z: 9.65, color: PAL.steelDark });
+  deckHatch(b, { x: 2.1, z: 12.3 });
+  const scuff = seeded(74);
+  for (let i = 0; i < 7; i++) {
+    b.cyl({
+      r: 0.13 + scuff() * 0.2,
+      h: 0.012,
+      x: -3.0 + scuff() * 6.0,
+      y: 0.008,
+      z: 9.8 + scuff() * 4.6,
+      seg: 8,
+      color: 0x1f232b,
+    });
+  }
+
+  hullRibs(b, { axis: "z", from: 9.6, to: 14.4, at: -3.85, stringer: false });
+  hullRibs(b, { axis: "z", from: 9.6, to: 14.4, at: 3.85, stringer: false });
+  hullRibs(b, { axis: "x", from: -3.2, to: 3.2, at: 9.15, skip: (x) => Math.abs(x) < 1.4 });
+  ceilingStrip(b, { axis: "z", x: -3.72, z: 12.0, length: 4.6, color: PAL.glowAmber });
+  ceilingStrip(b, { axis: "z", x: 3.72, z: 12.0, length: 4.6, color: PAL.glowAmber });
+}
+
 function populate(b) {
   buildCockpit(b);
   buildCommonArea(b);
   buildEngineRoom(b);
   buildCargoBay(b);
+  buildCrewQuarters(b);
   doorHeaders(b);
 }
 

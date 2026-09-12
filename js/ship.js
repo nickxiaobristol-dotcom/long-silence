@@ -12,6 +12,10 @@ export const ROOMS = [
   { name: "Common Area", minX: -3, maxX: 5, minZ: -5, maxZ: 5, color: 0x24303a },
   { name: "Engine Room", minX: 8, maxX: 16, minZ: -4, maxZ: 4, color: 0x2a2420 },
   { name: "Cargo Bay", minX: -5, maxX: 5, minZ: -15, maxZ: -9, color: 0x1f241d },
+  // Berthing, added north of the Common Area as a deliberate mirror of the
+  // Cargo Bay to its south: same width, same 2m spine corridor, so the hub
+  // reads as a cross with crew space one way and cargo the other.
+  { name: "Crew Quarters", minX: -4, maxX: 4, minZ: 9, maxZ: 15, color: 0x272a33 },
 ];
 
 // Corridors overlap 1m into each room they connect (rather than meeting
@@ -28,6 +32,8 @@ export const CORRIDORS = [
   { name: "Aft Corridor", minX: 4, maxX: 9, minZ: -1, maxZ: 1, color: 0x161c22 },
   // Common Area <-> Cargo Bay
   { name: "Cargo Corridor", minX: -1, maxX: 1, minZ: -10, maxZ: -4, color: 0x161c22 },
+  // Common Area <-> Crew Quarters
+  { name: "Quarters Corridor", minX: -1, maxX: 1, minZ: 4, maxZ: 10, color: 0x161c22 },
 ];
 
 export const WALKABLE = [...ROOMS, ...CORRIDORS];
@@ -49,7 +55,8 @@ const WALL_SEGMENTS = [
   { x1: -3, z1: 1, x2: -3, z2: 5 },
   { x1: 5, z1: -5, x2: 5, z2: -1 },
   { x1: 5, z1: 1, x2: 5, z2: 5 },
-  { x1: -3, z1: 5, x2: 5, z2: 5 },
+  { x1: -3, z1: 5, x2: -1, z2: 5 },
+  { x1: 1, z1: 5, x2: 5, z2: 5 },
   { x1: -3, z1: -5, x2: -1, z2: -5 },
   { x1: 1, z1: -5, x2: 5, z2: -5 },
 
@@ -66,6 +73,13 @@ const WALL_SEGMENTS = [
   { x1: -5, z1: -15, x2: 5, z2: -15 },
   { x1: -5, z1: -15, x2: -5, z2: -9 },
   { x1: 5, z1: -15, x2: 5, z2: -9 },
+
+  // Crew Quarters
+  { x1: -4, z1: 9, x2: -1, z2: 9 },
+  { x1: 1, z1: 9, x2: 4, z2: 9 },
+  { x1: -4, z1: 15, x2: 4, z2: 15 },
+  { x1: -4, z1: 9, x2: -4, z2: 15 },
+  { x1: 4, z1: 9, x2: 4, z2: 15 },
 ];
 
 const WALL_HEIGHT = 2.6;

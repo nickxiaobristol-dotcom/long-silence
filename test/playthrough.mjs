@@ -228,8 +228,15 @@ async function walkTo(page, x, z) {
 }
 
 // Common Area, from anywhere inside it -> deterministic corner (4.6, 4.6).
+//
+// The step east comes first and is not optional: the Common Area's north
+// wall stopped being solid when the Crew Quarters were added, and it now
+// has a hatch at x in [-1, 1]. Clamping north from the spine walks straight
+// out of the room and up the Quarters Corridor instead of stopping. Getting
+// to x >= 2.5 first puts the player in front of a solid span of that wall.
 async function clampToCommonNE(page) {
-  await clamp(page, "KeyS"); // north wall, solid full width
+  await walk(page, "KeyD", 2.5); // clear of the Crew Quarters hatch
+  await clamp(page, "KeyS"); // north wall, solid east of the hatch
   await clamp(page, "KeyD"); // east wall, solid above the corridor gap
 }
 
@@ -249,6 +256,17 @@ async function goCommonToAmara(page) {
   await clampToCommonNE(page);
   await walk(page, "KeyA", SPINE_AIM);
   await walk(page, "KeyW", -12); // through the Cargo Corridor to the Cargo Bay
+}
+
+// Same shape as the Cargo Bay run, in the other direction. Approaching the
+// corridor's centre line from the east matters: stopping overshoots by up
+// to a frame of travel, so the aim has to be the side the player is coming
+// from or they end up wide of a 2m-wide corridor mouth and walk into the
+// wall beside it instead.
+async function goCommonToQuarters(page) {
+  await clampToCommonNE(page);
+  await walk(page, "KeyA", SPINE_AIM);
+  await walk(page, "KeyS", 11.6); // through the Quarters Corridor to the berths
 }
 
 // Cockpit, from anywhere inside it -> spine (targetX, 0).
@@ -695,6 +713,14 @@ async function main() {
     await goCockpitToSpineX(page, 11.2);
     await walk(page, "KeyS", 1.0);
     await shoot(page, "ls_engine_v2.png");
+
+    await goEngineToSpineX(page, 0);
+    await goCommonToQuarters(page);
+    check(
+      (await playerPos(page)).z > 9,
+      "walked from the Engine Room through to the Crew Quarters"
+    );
+    await shoot(page, "ls_quarters_v2.png");
 
     section("Final integrity check");
     check(consoleErrors.length === 0, `zero console errors across the whole session (got ${consoleErrors.length})`);

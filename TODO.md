@@ -14,12 +14,17 @@ Checked sequence — confirm each stage with Nick before starting the next.
 6. [x] Test the full loop end to end in the browser before calling it done.
 
 Currently the ship layout, the 5 crew, and the dialogue system are all in.
-Ship layout: four rooms (Cockpit, Common Area, Engine Room, Cargo Bay)
-connected by corridors, with wall geometry and doorway gaps defined in
-`js/ship.js`. The player moves with WASD/arrow keys via `js/player.js`
-(follow camera, circle-vs-rect collision against room/corridor
-footprints). Crew: 5 low-poly capsule markers placed around the ship's
-rooms in `js/crew.js`, one per room plus a second in the Common Area.
+Ship layout: five rooms (Cockpit, Common Area, Engine Room, Cargo Bay and
+the Crew Quarters) connected by corridors, with wall geometry and doorway
+gaps defined in `js/ship.js`. The player moves with WASD/arrow keys via
+`js/player.js` (follow camera, circle-vs-rect collision against
+room/corridor footprints). Crew: 5 low-poly capsule markers placed around
+the ship in `js/crew.js` — one each in the Cockpit, Engine Room and Cargo
+Bay, two in the Common Area.
+
+The Crew Quarters came after v1 (see the entry at the bottom of this
+file): it holds a berth per crew member but nobody is stationed there, so
+crew positions and the dialogue system are untouched by it.
 
 Dialogue: `js/dialogue-data.js` holds a hand-authored content bank per
 crew member (~70 fragments each, ~350 total) — greetings, topic reactions
@@ -88,3 +93,37 @@ application issue. No bugs turned up in this pass; the ship exploration,
 5-crew reactive dialogue, and 3-decision consequence system all hold
 together as one coherent loop. The Long Silence v1 is a complete, tested
 prototype of the designed vertical slice.
+
+## Post-v1: Crew Quarters
+
+Berthing, added after the v1 slice closed. `js/ship.js` gains a fifth room
+(Crew Quarters, x -4..4, z 9..15) and a fourth corridor (Quarters Corridor,
+x -1..1, z 4..10) running north out of the Common Area, deliberately
+mirroring the Cargo Bay and its corridor to the south so the hub reads as a
+cross. The Common Area's north wall was split to open a 2m hatch at
+x in [-1, 1], which meant moving what used to sit on it: the crew lockers
+now stand as two pairs flanking the hatch, the mess bench tucks further
+under its table, and the string lights skip their bulbs over the opening.
+
+The room holds one berth per crew member — two down each side wall, the
+captain's across the aft end — built from a new `berth()` prop in
+`js/props.js` in the same merged-geometry style as everything else. Each
+one carries its occupant's marker color on the blanket, name plate and a
+stripe along the canopy (the stripe lies flat because this camera looks
+down, so a vertical accent reads edge-on at best), plus personal props
+drawn from CREW.md: Kaia's helmet and squared-away kit, Corwin's open
+toolroll and Drift banner, Amara's plant and med kit, Dessa's bottle and
+ship's registration plate, and Marcus's near-shut curtain over a locked
+case and nothing else. The south wall takes the wash station and duty
+board, since it's the wall that faces back toward the camera.
+
+No crew member is placed in the room: every position in `js/crew.js` is
+where the dialogue and decision systems expect to find them, and none of
+that logic was touched. The quarters are explorable space only.
+
+Verified: `npm test` 43/43 (a new collision test covers the Quarters
+Corridor sweep and the north wall either side of the hatch), and
+`test/playthrough.mjs` still plays the whole loop clean — all 5 crew,
+all relationship choices, all 3 decisions, cross-crew reactions, zero
+console errors — with a Crew Quarters visit added to its per-room
+screenshot pass.

@@ -26,6 +26,14 @@ test("gap between Common Area and Cargo Bay, off the corridor, is not walkable",
   assert.equal(isWalkable(3, -6.5, PLAYER_RADIUS), false);
 });
 
+// Same check for the Crew Quarters spur: the Common Area's north wall was
+// split to open the hatch at x in [-1, 1], and the halves either side of it
+// still have to be solid.
+test("gap between Common Area and Crew Quarters, off the corridor, is not walkable", () => {
+  assert.equal(isWalkable(3, 7, PLAYER_RADIUS), false);
+  assert.equal(isWalkable(-2.5, 7, PLAYER_RADIUS), false);
+});
+
 // Regression test: rooms and corridors used to meet at exactly flush
 // edges, which left a real gap right at each doorway threshold once the
 // player's collision radius was subtracted — the player would get stuck
@@ -37,6 +45,7 @@ test("no collision gap along any doorway transition", () => {
     { axis: "x", from: -13, to: 4, fixed: 0, label: "fwd corridor" },
     { axis: "x", from: 4, to: 15, fixed: 0, label: "aft corridor" },
     { axis: "z", from: -14, to: 4, fixed: 0, label: "cargo corridor" },
+    { axis: "z", from: 4, to: 14, fixed: 0, label: "quarters corridor" },
   ];
   for (const { axis, from, to, fixed, label } of sweeps) {
     for (let v = from; v <= to + 1e-9; v += step) {
