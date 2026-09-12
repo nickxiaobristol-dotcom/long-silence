@@ -11,7 +11,7 @@ Checked sequence — confirm each stage with Nick before starting the next.
 4. [x] Build a basic dialogue system (branching lines, at least one
    relationship-affecting choice per crew member).
 5. [x] Wire in 2-3 decision points with visible consequences.
-6. [ ] Test the full loop end to end in the browser before calling it done.
+6. [x] Test the full loop end to end in the browser before calling it done.
 
 Currently the ship layout, the 5 crew, and the dialogue system are all in.
 Ship layout: four rooms (Cockpit, Common Area, Engine Room, Cargo Bay)
@@ -64,4 +64,27 @@ headlessly in Playwright end to end: triggered the contract decision
 through Dessa, picked the Drift option, confirmed it's locked out
 afterward, then walked to Corwin in a separate conversation and confirmed
 his dialogue now references that specific outcome — zero console errors.
-Step 6 (full end-to-end test pass in the browser) is next.
+
+Step 6 closes out v1: `npm test` passes clean (35/35 — crew, ship
+collision, dialogue engine, decisions). On top of that, a single
+continuous headless Playwright session (`test/playthrough.mjs`, run
+manually — Playwright isn't a project dependency, it drives a real
+Chromium instance) played the whole designed loop end to end rather than
+re-checking isolated features: booted with zero console errors, walked
+WASD through all four rooms and every corridor doorway, including a
+deliberate negative check that the Common Area's west wall still blocks a
+straight run outside the Fwd Corridor's gap (collision hasn't regressed);
+talked to all 5 crew for basic dialogue and flavor; asked 3 different
+cross-crew "ask about" questions; triggered 4 relationship-affecting
+choices (Corwin, Dessa, Marcus, Amara) and confirmed each one's mood
+shift shows up in a later line and in the returning greeting; triggered
+all 3 decisions (the Contract, Marcus's Secret, the Supply Run), each
+locking itself out immediately after being chosen; and confirmed 3
+different crew members (Corwin, Dessa, Amara) react by name to decisions
+made in someone else's conversation. Zero console or page errors across
+the whole session — the only browser console output at all was a benign
+headless-GPU "GPU stall due to ReadPixels" driver warning, not an
+application issue. No bugs turned up in this pass; the ship exploration,
+5-crew reactive dialogue, and 3-decision consequence system all hold
+together as one coherent loop. The Long Silence v1 is a complete, tested
+prototype of the designed vertical slice.
