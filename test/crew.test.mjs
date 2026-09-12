@@ -53,3 +53,36 @@ test("findNearbyCrew respects INTERACT_RANGE", () => {
   const justOutside = captain.z - INTERACT_RANGE - 0.5;
   assert.equal(findNearbyCrew(captain.x, justOutside), null);
 });
+
+test("every crew member starts with a live position matching their spawn", () => {
+  for (const member of CREW) {
+    assert.equal(member.curX, member.x);
+    assert.equal(member.curZ, member.z);
+  }
+});
+
+test("findNearbyCrew checks live position (curX/curZ), not the fixed spawn (x/z)", () => {
+  const captain = CREW.find((m) => m.name === "Dessa Okafor");
+  const spawnX = captain.x;
+  const spawnZ = captain.z;
+  try {
+    // Simulate autonomous wandering (js/crew-behavior.js) moving the
+    // captain well away from her spawn point.
+    captain.curX = captain.x + 20;
+    captain.curZ = captain.z + 20;
+
+    assert.equal(
+      findNearbyCrew(spawnX, spawnZ),
+      null,
+      "standing on the old spawn point should no longer find her"
+    );
+    assert.equal(
+      findNearbyCrew(captain.curX, captain.curZ),
+      captain,
+      "standing next to her current position should find her"
+    );
+  } finally {
+    captain.curX = spawnX;
+    captain.curZ = spawnZ;
+  }
+});

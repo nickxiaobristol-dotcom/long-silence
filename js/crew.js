@@ -57,6 +57,19 @@ export const CREW = [
   },
 ];
 
+// Live position, separate from the hand-placed spawn (x, z) above: crew.js
+// itself sets these at module load so they exist as soon as CREW is
+// imported anywhere (tests included), and js/crew-behavior.js is the only
+// thing that moves them afterward, walking each crew member around their
+// room. findNearbyCrew reads curX/curZ rather than x/z specifically so the
+// "Press E to talk" range check keeps working once a crew member is no
+// longer standing on their spawn point.
+for (const member of CREW) {
+  member.curX = member.x;
+  member.curZ = member.z;
+  member.facing = 0;
+}
+
 function buildCrewMarker(member) {
   const marker = buildHumanoid(member.color);
   marker.position.set(member.x, 0, member.z);
@@ -65,16 +78,20 @@ function buildCrewMarker(member) {
 
 export function buildCrew(scene) {
   for (const member of CREW) {
-    scene.add(buildCrewMarker(member));
+    const marker = buildCrewMarker(member);
+    member.marker = marker;
+    scene.add(marker);
   }
 }
 
-// Nearest crew member within INTERACT_RANGE of (x, z), or null.
+// Nearest crew member within INTERACT_RANGE of (x, z), or null. Checks the
+// live (curX, curZ) position, not the fixed spawn (x, z), so this keeps
+// working once crew members wander off their starting spot.
 export function findNearbyCrew(x, z) {
   let closest = null;
   let closestDist = Infinity;
   for (const member of CREW) {
-    const dist = Math.hypot(member.x - x, member.z - z);
+    const dist = Math.hypot(member.curX - x, member.curZ - z);
     if (dist <= INTERACT_RANGE && dist < closestDist) {
       closest = member;
       closestDist = dist;
