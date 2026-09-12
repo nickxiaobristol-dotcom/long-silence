@@ -43,12 +43,18 @@ function addSky(scene) {
 
 // Small colored point lights tied to the props that would be emitting them
 // (see decorations.js): the cockpit viewport, the reactor, a common-area
-// lamp, and a dimmer cargo bay fixture.
+// lamp, and a dimmer cargo bay fixture. The reactor light tracks the core
+// to its new position in the detail pass; the last entry is a new
+// short-range lamp for the engine room's workbench, which is the one new
+// focal area none of the original four reach. Kept to five: these are
+// per-fragment costs on every lit surface, and the galley's hot plate
+// already sits inside the common area lamp's 12m radius.
 const ACCENT_LIGHTS = [
   { color: 0x66b8ff, intensity: 14, distance: 14, x: -13.4, y: 1.7, z: 0 },
-  { color: 0xffa15c, intensity: 18, distance: 12, x: 13, y: 1.7, z: 0 },
+  { color: 0xffa15c, intensity: 18, distance: 12, x: 14, y: 1.5, z: 0 },
   { color: 0xffd39a, intensity: 14, distance: 12, x: 1, y: 2.4, z: 1 },
   { color: 0x9fc2dd, intensity: 12, distance: 13, x: 0, y: 2.4, z: -12 },
+  { color: 0xffca8f, intensity: 7, distance: 5.5, x: 11.5, y: 1.5, z: -3.5 },
 ];
 
 export function buildAtmosphere(scene) {

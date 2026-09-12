@@ -14,22 +14,36 @@
 // all while watching for console errors/page crashes.
 
 import { spawn } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 
-// Playwright isn't a devDependency of this zero-build project; reuse the
-// package (and its already-downloaded chromium binary) cached on this
-// machine from prior npx usage instead of adding a new install. Node's ESM
-// resolver ignores NODE_PATH, so require() by absolute path via
-// createRequire instead of a bare `import "playwright"`.
+// Playwright isn't a devDependency of this zero-build project; reuse a
+// package (and its already-downloaded chromium binary) already cached on
+// this machine instead of adding a new install. Node's ESM resolver
+// ignores NODE_PATH, so require() by absolute path via createRequire
+// instead of a bare `import "playwright"`.
 const require = createRequire(import.meta.url);
-const { chromium } = require("/home/nickx/.npm/_npx/705bc6b22212b352/node_modules/playwright");
+const PLAYWRIGHT_PATHS = [
+  "/home/nickx/.local/share/bobbie-tools/node_modules/playwright",
+  "/home/nickx/.npm/_npx/705bc6b22212b352/node_modules/playwright",
+];
+function loadPlaywright() {
+  for (const candidate of PLAYWRIGHT_PATHS) {
+    if (fs.existsSync(candidate)) return require(candidate);
+  }
+  throw new Error(`No cached playwright found in:\n  ${PLAYWRIGHT_PATHS.join("\n  ")}`);
+}
+const { chromium } = loadPlaywright();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
 const PORT = 8421;
 const BASE_URL = `http://localhost:${PORT}/`;
+// Screenshots land outside the repo on purpose — this is a throwaway
+// verification script and the shots are review artifacts, not assets.
+const SHOT_DIR = process.env.LS_SHOT_DIR || "/home/nickx/.openclaw/workspace/scratch";
 
 const consoleErrors = [];
 const pageErrors = [];
@@ -52,13 +66,25 @@ async function waitMs(ms) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// Hold one or two movement keys down for `ms` milliseconds (real time —
-// the game's movement loop runs off requestAnimationFrame/performance.now,
-// same as a real player holding keys).
-async function hold(page, keys, ms) {
-  for (const k of keys) await page.keyboard.down(k);
-  await waitMs(ms);
-  for (const k of keys) await page.keyboard.up(k);
+// Reported for context only — nothing below depends on it. Headless
+// chromium has no GPU and rasterizes in software, so this number says
+// nothing about the game's speed on real hardware; it's here because a
+// sudden collapse would be worth noticing.
+async function measureFps(page) {
+  return page.evaluate(
+    () =>
+      new Promise((resolve) => {
+        let frames = 0;
+        const start = performance.now();
+        const tick = () => {
+          frames += 1;
+          const elapsed = performance.now() - start;
+          if (elapsed < 2000) requestAnimationFrame(tick);
+          else resolve(frames / (elapsed / 1000));
+        };
+        requestAnimationFrame(tick);
+      })
+  );
 }
 
 async function interactPromptText(page) {
@@ -106,85 +132,161 @@ async function interact(page) {
   await waitMs(150);
 }
 
-// --- Robust cross-room navigation -------------------------------------------
-// The game exposes no debug position readout, so long cross-room hops are
-// driven by wall-clamping rather than dead-reckoning from an assumed start
-// position: holding one direction for CLAMP_MS (well beyond any room's
-// extent) deterministically pins the player against that solid wall no
-// matter where it started, since it only ever needs walls that are fully
-// solid across the whole room (see js/ship.js WALL_SEGMENTS — each room has
-// exactly one doorway gap, and every other wall is solid edge-to-edge).
-// From a clamped corner, a precisely-timed hold reaches the next target.
-const MPS = 4.2; // must match SPEED in js/player.js
-function ms(meters) {
-  return Math.round((meters / MPS) * 1000);
+// Frame a room and save it. The HUD is hidden first so the shot shows the
+// set dressing rather than the overlay, and a beat is given for a few
+// frames to settle after the walk that got us here.
+async function shoot(page, name) {
+  await waitMs(500);
+  await page.evaluate(() => {
+    for (const id of ["hint", "interact-prompt", "dialogue-panel"]) {
+      document.getElementById(id).style.display = "none";
+    }
+  });
+  await waitMs(200);
+  const file = path.join(SHOT_DIR, name);
+  await page.screenshot({ path: file });
+  console.log(`  ok - saved ${file}`);
 }
-const CLAMP_MS = 3000; // >12.6m of travel — more than any room's extent
+
+// --- Robust cross-room navigation -------------------------------------------
+// Movement is closed-loop against the player's real position (exposed by
+// js/main.js as window.__lsPlayer purely for this harness) rather than
+// dead-reckoned from key-hold durations. Dead reckoning assumes the player
+// covers SPEED metres per second of wall-clock time, which is only true
+// above 10fps — js/player.js clamps dt to 0.1s per frame, and headless
+// chromium renders this scene on a software rasterizer at well under that.
+// Walking until a coordinate is reached is immune to all of it.
+//
+// Routes still go via wall clamps rather than diagonals: each room has
+// exactly one doorway gap and every other wall is solid edge-to-edge (see
+// WALL_SEGMENTS in js/ship.js), so pinning into a known corner and then
+// running along an axis is a path that always exists.
+
+const AXIS_OF = { KeyW: "z", KeyS: "z", KeyA: "x", KeyD: "x" };
+const SIGN_OF = { KeyW: -1, KeyS: 1, KeyA: -1, KeyD: 1 };
+
+async function playerPos(page) {
+  return page.evaluate(() => ({ x: window.__lsPlayer.x, z: window.__lsPlayer.z }));
+}
+
+// Hold one direction until `target` is reached on that axis, or until the
+// player stops moving (a wall). Returns true if the target was reached.
+// Pass a target beyond the hull to deliberately clamp into a wall.
+//
+// Polling happens inside the page (waitForFunction with polling: "raf")
+// rather than by round-tripping playerPos every tick. An IPC poll costs
+// ~200ms here, during which the player covers most of a metre, and that
+// overshoot was enough to leave it mis-aligned with a doorway and pinned
+// against a wall. In-page polling cuts the stopping error to roughly one
+// rendered frame of travel.
+const ARRIVAL_TOLERANCE = 0.7; // one frame of travel at the headless frame rate
+
+async function walk(page, key, target) {
+  const axis = AXIS_OF[key];
+  const sign = SIGN_OF[key];
+  await page.evaluate(() => {
+    window.__lsWalk = null;
+  });
+  await page.keyboard.down(key);
+  try {
+    await page.waitForFunction(
+      ({ axis, sign, target }) => {
+        const here = window.__lsPlayer[axis];
+        const state = window.__lsWalk || (window.__lsWalk = { last: here, stalled: 0 });
+        if (Math.abs(here - state.last) < 0.01) state.stalled += 1;
+        else {
+          state.stalled = 0;
+          state.last = here;
+        }
+        // Stop on arrival, or after ~30 frames pinned against a wall.
+        return sign * (here - target) >= 0 || state.stalled > 30;
+      },
+      { axis, sign, target },
+      { polling: "raf", timeout: 60000 }
+    );
+  } finally {
+    await page.keyboard.up(key);
+  }
+  const here = (await playerPos(page))[axis];
+  return sign * (here - target) >= -ARRIVAL_TOLERANCE;
+}
+
+// Walks that line up with a doorway aim a little short of the centre line
+// rather than at it: stopping always overshoots by up to a frame of
+// travel, and the corridors are only 2m wide against a 0.4m player radius.
+const SPINE_AIM = 0.35;
+
+// Deliberately run into a wall on this axis and stop there.
+async function clamp(page, key) {
+  await walk(page, key, SIGN_OF[key] * 999);
+}
+
+async function walkTo(page, x, z) {
+  const here = await playerPos(page);
+  await walk(page, x >= here.x ? "KeyD" : "KeyA", x);
+  await walk(page, z >= here.z ? "KeyS" : "KeyW", z);
+}
 
 // Common Area, from anywhere inside it -> deterministic corner (4.6, 4.6).
 async function clampToCommonNE(page) {
-  await hold(page, ["KeyS"], CLAMP_MS); // clamp z = 4.6 (north wall, solid full width)
-  await hold(page, ["KeyD"], CLAMP_MS); // clamp x = 4.6 (east wall, solid above the corridor gap)
+  await clamp(page, "KeyS"); // north wall, solid full width
+  await clamp(page, "KeyD"); // east wall, solid above the corridor gap
 }
 
 async function goCommonToKaia(page) {
   await clampToCommonNE(page);
-  await hold(page, ["KeyW"], ms(4.6)); // z: 4.6 -> 0
-  await hold(page, ["KeyA"], ms(14.6) + 50); // x: 4.6 -> -10, through the Fwd Corridor
+  await walk(page, "KeyW", SPINE_AIM); // onto the z = 0 spine
+  await walk(page, "KeyA", -10); // through the Fwd Corridor to the Cockpit
 }
 
 async function goCommonToCorwin(page) {
   await clampToCommonNE(page);
-  await hold(page, ["KeyW"], ms(4.6)); // z: 4.6 -> 0
-  await hold(page, ["KeyD"], ms(7.4) + 50); // x: 4.6 -> 12, through the Aft Corridor
+  await walk(page, "KeyW", SPINE_AIM);
+  await walk(page, "KeyD", 12); // through the Aft Corridor to the Engine Room
 }
 
 async function goCommonToAmara(page) {
   await clampToCommonNE(page);
-  await hold(page, ["KeyA"], ms(4.6)); // x: 4.6 -> 0
-  await hold(page, ["KeyW"], ms(16.6) + 50); // z: 4.6 -> -12, through the Cargo Corridor
+  await walk(page, "KeyA", SPINE_AIM);
+  await walk(page, "KeyW", -12); // through the Cargo Corridor to the Cargo Bay
 }
 
 // Cockpit, from anywhere inside it -> spine (targetX, 0).
 async function goCockpitToSpineX(page, targetX) {
-  await hold(page, ["KeyA"], CLAMP_MS); // clamp x = -13.6 (west wall, solid full height)
-  await hold(page, ["KeyS"], CLAMP_MS); // clamp z = 3.6 (north wall, solid full width)
-  await hold(page, ["KeyW"], ms(3.6)); // z -> 0
-  const dx = targetX - -13.6;
-  await hold(page, [dx >= 0 ? "KeyD" : "KeyA"], ms(Math.abs(dx)) + 50);
+  await clamp(page, "KeyA"); // nose wall, solid full height
+  await clamp(page, "KeyS"); // north wall, solid full width
+  await walk(page, "KeyW", SPINE_AIM);
+  await walk(page, targetX >= -13.6 ? "KeyD" : "KeyA", targetX);
 }
 
 // Engine Room, from anywhere inside it -> spine (targetX, 0).
 async function goEngineToSpineX(page, targetX) {
-  await hold(page, ["KeyD"], CLAMP_MS); // clamp x = 15.6 (east wall, solid full height)
-  await hold(page, ["KeyS"], CLAMP_MS); // clamp z = 3.6 (north wall, solid full width)
-  await hold(page, ["KeyW"], ms(3.6)); // z -> 0
-  const dx = targetX - 15.6;
-  await hold(page, [dx >= 0 ? "KeyD" : "KeyA"], ms(Math.abs(dx)) + 50);
+  await clamp(page, "KeyD"); // east wall, solid full height
+  await clamp(page, "KeyS"); // north wall, solid full width
+  await walk(page, "KeyW", SPINE_AIM);
+  await walk(page, targetX >= 15.6 ? "KeyD" : "KeyA", targetX);
 }
 
 // Cargo Bay, from anywhere inside it -> spine (targetX, 0), via Common Area.
 async function goCargoToSpineX(page, targetX) {
-  await hold(page, ["KeyW"], CLAMP_MS); // clamp z = -14.6 (south wall, solid full width)
-  await hold(page, ["KeyD"], CLAMP_MS); // clamp x = 4.6 (east wall, solid full height)
-  await hold(page, ["KeyA"], ms(4.6)); // x -> 0
-  await hold(page, ["KeyS"], ms(14.6) + 50); // z: -14.6 -> 0, through the Cargo Corridor
-  if (targetX !== 0) {
-    await hold(page, [targetX > 0 ? "KeyD" : "KeyA"], ms(Math.abs(targetX)) + 50);
-  }
+  await clamp(page, "KeyW"); // aft wall, solid full width
+  await clamp(page, "KeyD"); // east wall, solid full height
+  await walk(page, "KeyA", SPINE_AIM); // onto the Cargo Corridor's centre line
+  await walk(page, "KeyS", -SPINE_AIM); // north through the corridor to the spine
+  if (targetX !== 0) await walk(page, targetX > 0 ? "KeyD" : "KeyA", targetX);
 }
 
 async function goEngineToAmara(page) {
   await goEngineToSpineX(page, 0);
-  await hold(page, ["KeyW"], ms(12) + 50); // z: 0 -> -12
+  await walk(page, "KeyW", -12);
 }
 
 async function spineToDessa(page) {
-  await hold(page, ["KeyW"], ms(3) + 20); // z: 0 -> -3
+  await walk(page, "KeyW", -3);
 }
 
 async function spineToMarcus(page) {
-  await hold(page, ["KeyS"], ms(3) + 20); // z: 0 -> 3
+  await walk(page, "KeyS", 3);
 }
 
 async function main() {
@@ -210,12 +312,14 @@ async function main() {
     await waitMs(1000); // let a few animation frames run
     check(consoleErrors.length === 0, `zero console errors on boot (got ${consoleErrors.length})`);
     check(pageErrors.length === 0, `zero uncaught page errors on boot (got ${pageErrors.length})`);
+    const fps = await measureFps(page);
+    console.log(`  info - ${fps.toFixed(1)} fps in headless software rendering`);
 
     // --- Movement + collision -------------------------------------------------
     section("Movement & collision: Common Area -> Marcus");
     // Player starts at (1,0), center of the Common Area. Marcus sits at
     // (3,3), inside the same room, so a direct diagonal hold is safe.
-    await hold(page, ["KeyD", "KeyS"], 950);
+    await walkTo(page, 3, 3);
     check(await waitForNearby(page, "Marcus"), "reached Marcus in the Common Area");
 
     section("Dialogue: Marcus, first meeting (talkCount 1) — secret should NOT be offered yet");
@@ -247,15 +351,14 @@ async function main() {
     // the Common Area's west wall is the Fwd Corridor at z in [-1, 1].
     // Holding pure west (A) from z=3 should NOT reach the Cockpit/Kaia —
     // if it does, wall collision has regressed.
-    await hold(page, ["KeyA"], 3000);
+    await clamp(page, "KeyA");
     const leakedThroughWall = await waitForNearby(page, "Kaia", 500);
     check(!leakedThroughWall, "west wall blocks a straight run at z=3 (no wall clip into Cockpit)");
 
     section("Movement & collision: -> Dessa");
     // Get back to a known-safe point (center of Common Area) first, then
     // to Dessa (1, -3), still inside the Common Area rect.
-    await hold(page, ["KeyD"], 1000); // back toward the room's middle
-    await hold(page, ["KeyW"], 1600); // north to Dessa's z
+    await walkTo(page, 1, -3);
     check(await waitForNearby(page, "Dessa"), "reached Dessa in the Common Area");
 
     section("Movement & collision: -> Kaia (through Fwd Corridor)");
@@ -448,8 +551,7 @@ async function main() {
     section("Movement: -> Marcus");
     // Currently at Dessa (1, -3) in the Common Area; Marcus is at (3, 3),
     // both reachable with a couple of straight moves inside the same room.
-    await hold(page, ["KeyD"], ms(2) + 20);
-    await hold(page, ["KeyS"], ms(6) + 20);
+    await walkTo(page, 3, 3);
     check(await waitForNearby(page, "Marcus"), "reached Marcus again");
 
     await interact(page); // 2nd conversation with Marcus overall -> talkCount hits 2, gate opens
@@ -570,6 +672,29 @@ async function main() {
     const amaraOnContract = await lineText(page);
     check(amaraOnContract.includes("Compact pays reliably"), `Amara reacts to the Contract (compact): "${amaraOnContract}"`);
     await clickChoice(page, "End conversation");
+
+    // --- Visual record: one framed shot per room ---------------------------
+    // Same wall-clamp navigation as everything above, so these also act as
+    // a final traversal of all four rooms and every corridor.
+    section("Screenshots: one per room");
+    fs.mkdirSync(SHOT_DIR, { recursive: true });
+
+    // Standing at Amara (0, -12) already — dead centre of the Cargo Bay.
+    await shoot(page, "ls_cargo_v2.png");
+
+    await goCargoToSpineX(page, 1);
+    await walk(page, "KeyS", 1.5); // centres the Common Area in frame
+    await shoot(page, "ls_common_v2.png");
+
+    await clampToCommonNE(page);
+    await walk(page, "KeyW", 0.5); // lined up with the Fwd Corridor
+    await walk(page, "KeyA", -10.6);
+    await walk(page, "KeyS", 1.5); // backs off so the nav table clears the frame edge
+    await shoot(page, "ls_cockpit_v2.png");
+
+    await goCockpitToSpineX(page, 11.2);
+    await walk(page, "KeyS", 1.0);
+    await shoot(page, "ls_engine_v2.png");
 
     section("Final integrity check");
     check(consoleErrors.length === 0, `zero console errors across the whole session (got ${consoleErrors.length})`);

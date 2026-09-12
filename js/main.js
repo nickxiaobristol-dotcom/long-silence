@@ -153,6 +153,14 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
+// Read-only handle for the headless playthrough harness
+// (test/playthrough.mjs), which otherwise has to dead-reckon the player's
+// position from key-hold durations — and that breaks the moment the frame
+// rate drops, because player.js clamps dt. Exposing the controller lets
+// the harness walk to a coordinate and stop when it gets there. Nothing in
+// the game reads this.
+window.__lsPlayer = player;
+
 let lastTime = performance.now();
 function animate() {
   requestAnimationFrame(animate);
