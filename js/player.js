@@ -1,5 +1,5 @@
-import * as THREE from "three";
 import { isWalkable } from "./ship.js";
+import { buildHumanoid } from "./character.js";
 
 const SPEED = 4.2; // meters/second
 const RADIUS = 0.4; // collision radius against room/corridor walls
@@ -22,11 +22,8 @@ export class PlayerController {
     this.z = startZ;
     this.pressed = new Set();
 
-    this.marker = new THREE.Mesh(
-      new THREE.CapsuleGeometry(RADIUS * 0.8, 1, 4, 8),
-      new THREE.MeshStandardMaterial({ color: 0x4fd1c5 })
-    );
-    this.marker.position.set(this.x, 0.9, this.z);
+    this.marker = buildHumanoid(0x4fd1c5);
+    this.marker.position.set(this.x, 0, this.z);
 
     window.addEventListener("keydown", (e) => this.pressed.add(e.code));
     window.addEventListener("keyup", (e) => this.pressed.delete(e.code));
@@ -64,7 +61,7 @@ export class PlayerController {
       }
     }
 
-    this.marker.position.set(this.x, 0.9, this.z);
+    this.marker.position.set(this.x, 0, this.z);
     this._syncCamera();
   }
 

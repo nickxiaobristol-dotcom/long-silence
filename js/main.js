@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { buildShip } from "./ship.js";
 import { PlayerController } from "./player.js";
 import { buildCrew, findNearbyCrew } from "./crew.js";
+import { buildDecorations } from "./decorations.js";
 import { CREW_DIALOGUE } from "./dialogue-data.js";
 import {
   createDialogueState,
@@ -41,6 +42,7 @@ scene.add(keyLight);
 
 buildShip(scene);
 buildCrew(scene);
+buildDecorations(scene);
 
 // Start in the Common Area, the ship's central hub.
 const player = new PlayerController(camera, 1, 0);

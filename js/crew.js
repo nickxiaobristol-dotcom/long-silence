@@ -1,4 +1,4 @@
-import * as THREE from "three";
+import { buildHumanoid } from "./character.js";
 
 // The 5 crew of The Long Silence. Positions are hand-placed inside each
 // room's floor rect (see ROOMS in ship.js) at spots that fit their role.
@@ -58,11 +58,8 @@ export const CREW = [
 ];
 
 function buildCrewMarker(member) {
-  const marker = new THREE.Mesh(
-    new THREE.CapsuleGeometry(0.35, 1, 4, 8),
-    new THREE.MeshStandardMaterial({ color: member.color })
-  );
-  marker.position.set(member.x, 0.9, member.z);
+  const marker = buildHumanoid(member.color);
+  marker.position.set(member.x, 0, member.z);
   return marker;
 }
 
