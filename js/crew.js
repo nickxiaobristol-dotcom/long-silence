@@ -2,14 +2,16 @@ import * as THREE from "three";
 
 // The 5 crew of The Long Silence. Positions are hand-placed inside each
 // room's floor rect (see ROOMS in ship.js) at spots that fit their role.
-// Full backstories and dialogue voice notes live in CREW.md — this file
-// only needs enough per character to render a marker and show a single
-// placeholder flavor line (step 4 replaces `line` with a branching tree).
+// Full backstories and dialogue voice notes live in CREW.md. `id` keys
+// into the content bank in js/dialogue-data.js; `line` is the step-3
+// placeholder flavor line, kept as a fallback/for tests but no longer
+// shown once the branching dialogue system (js/dialogue.js) is wired up.
 
 export const INTERACT_RANGE = 2; // meters; matches player marker scale
 
 export const CREW = [
   {
+    id: "dessa",
     name: "Dessa Okafor",
     role: "Captain",
     x: 1,
@@ -18,6 +20,7 @@ export const CREW = [
     line: "\"Everyone on this ship has a reason to hate somebody. My job is making sure they all hate the same somebody, and it isn't me.\"",
   },
   {
+    id: "kaia",
     name: "Kaia Brenn",
     role: "Pilot",
     x: -10,
@@ -26,6 +29,7 @@ export const CREW = [
     line: "\"Ridgeline taught me to fly formation. Nobody taught me what to do when there's no formation left to fly.\"",
   },
   {
+    id: "corwin",
     name: "Corwin Talus",
     role: "Engineer",
     x: 12,
@@ -34,6 +38,7 @@ export const CREW = [
     line: "\"This ship's held together by my wiring and my patience, and I'm running low on both. Mind the coolant line.\"",
   },
   {
+    id: "amara",
     name: "Amara Voss",
     role: "Medic/Quartermaster",
     x: 0,
@@ -42,6 +47,7 @@ export const CREW = [
     line: "\"We've got two crates of painkillers and a hundred people on Ceres Station who need them more than we need the money. Just so you know.\"",
   },
   {
+    id: "marcus",
     name: "Marcus Reyn",
     role: "Security",
     x: 3,
