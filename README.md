@@ -39,8 +39,9 @@ Low-poly/stylised visual design; prioritise speed of building over fidelity.
 - **Security** — enforcer with a hidden past, loyalty currently uncertain, a
   source of mid-game tension.
 
-Full names, backstories, and dialogue voice for each are invented during
-step 3 (see TODO.md), consistent with the faction leanings above.
+Full names, backstories, and dialogue voice for each are in
+[CREW.md](CREW.md) (written in step 3), consistent with the faction
+leanings above.
 
 ## Core loop (first slice only)
 

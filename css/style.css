@@ -27,6 +27,20 @@ html, body {
   pointer-events: none;
 }
 
+#interact-prompt {
+  position: absolute;
+  left: 50%;
+  bottom: 44px;
+  transform: translateX(-50%);
+  padding: 6px 12px;
+  background: rgba(10, 14, 18, 0.85);
+  border: 1px solid #35414a;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #e8e8e8;
+  pointer-events: none;
+}
+
 #dialogue-panel {
   position: absolute;
   left: 50%;
