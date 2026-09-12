@@ -1,0 +1,76 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #05070a;
+  font-family: system-ui, sans-serif;
+  color: #e8e8e8;
+}
+
+#scene-container {
+  position: absolute;
+  inset: 0;
+}
+
+#scene-container canvas {
+  display: block;
+}
+
+#hint {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 13px;
+  color: #9aa4ad;
+  pointer-events: none;
+}
+
+#dialogue-panel {
+  position: absolute;
+  left: 50%;
+  bottom: 40px;
+  transform: translateX(-50%);
+  width: min(600px, 90vw);
+  background: rgba(10, 14, 18, 0.92);
+  border: 1px solid #2a333b;
+  border-radius: 6px;
+  padding: 16px 20px;
+}
+
+#dialogue-speaker {
+  margin: 0 0 6px;
+  font-weight: 600;
+  color: #c9d6df;
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+}
+
+#dialogue-line {
+  margin: 0 0 12px;
+  line-height: 1.4;
+}
+
+#dialogue-choices {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#dialogue-choices li {
+  cursor: pointer;
+  padding: 8px 10px;
+  border: 1px solid #35414a;
+  border-radius: 4px;
+  background: #131a20;
+}
+
+#dialogue-choices li:hover {
+  background: #1c252c;
+  border-color: #4a5a66;
+}

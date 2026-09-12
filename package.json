@@ -1,0 +1,14 @@
+{
+  "name": "long-silence",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The Long Silence — original narrative sci-fi game, browser-based, Three.js. First vertical slice: ship, crew, branching dialogue, consequence.",
+  "type": "module",
+  "scripts": {
+    "serve": "python3 -m http.server 8421",
+    "test": "node --test test/"
+  },
+  "devDependencies": {
+    "three": "0.186.0"
+  }
+}
