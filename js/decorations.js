@@ -19,13 +19,17 @@ import {
   warningSign,
 } from "./props.js";
 
-// Set dressing for the ship's four rooms. Visual only: nothing here is
-// added to ship.js's WALKABLE list, so no prop can ever trap the player.
-// The layout rules that keep that honest are asserted by
-// test/decorations.test.mjs, which walks the AABB of every primitive
-// placed below and checks that nothing above ankle height sits inside a
-// corridor rect, on a crew member's or the player's spawn, or outside the
-// hull. Change a coordinate here and that test is the safety net.
+// Set dressing for the ship's four rooms. Nothing here is added to
+// ship.js's WALKABLE list directly — ship.js's PROP_COLLIDERS instead
+// hand-mirrors the footprint of every significant solid prop below (the
+// reactor, consoles, tables, crate stacks, berths...) as its own rects/
+// circles, so a coordinate moved here should have its matching collider
+// in ship.js checked too. The layout rules that keep placement honest are
+// asserted by test/decorations.test.mjs, which walks the AABB of every
+// primitive placed below and checks that nothing above ankle height sits
+// inside a corridor rect, on a crew member's or the player's spawn, or
+// outside the hull. Change a coordinate here and that test is the safety
+// net.
 //
 // Two things about the fixed follow camera (player.js: (x, 9, z + 5.5)
 // looking at (x, 0.5, z)) drive most of the composition:

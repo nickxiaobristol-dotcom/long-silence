@@ -18,8 +18,9 @@ import { mergeGeometries } from "./vendor/three/examples/jsm/utils/BufferGeometr
 //
 // Everything here is static: nothing merged into a bucket can be moved,
 // recolored, or hidden individually afterward. That's fine — none of the
-// set dressing animates, and none of it participates in collision (see
-// ship.js's WALKABLE, which decorations deliberately stay out of).
+// set dressing animates. Collision for the significant solid props built
+// with this toolkit lives separately, as hand-matched rects/circles in
+// ship.js's PROP_COLLIDERS, rather than derived from these meshes.
 
 // One palette for all four rooms so the ship reads as a single built
 // object rather than four unrelated sets. Extends the colors the first

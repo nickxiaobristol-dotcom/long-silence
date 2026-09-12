@@ -32,16 +32,23 @@ const WAYPOINTS = {
   ],
   kaia: [
     { x: -10, z: 0 },
-    { x: -11.4, z: 2.6 },
+    // Was (-11.4, 2.6): that sat right against the console bay collider
+    // and the nav chart table now that furniture has real collision (see
+    // ship.js's PROP_COLLIDERS) — nudged to (-11.4, 2.3), clear of both.
+    { x: -11.4, z: 2.3 },
   ],
   corwin: [
-    { x: 13, z: 0.5 },
+    // Was (13, 0.5), inside the reactor's new collision circle at
+    // (14, 0) r 1.3. Moved to a clear approach spot in front of it.
+    { x: 12.3, z: 1.0 },
     { x: 10.5, z: -2.6 },
   ],
   amara: [
     { x: 0, z: -12 },
     { x: -3, z: -10.5 },
-    { x: 3, z: -13 },
+    // Was (3, -13), inside the east crate stack's new collision rect.
+    // Moved to open floor further from the stacks.
+    { x: 3, z: -11 },
   ],
   marcus: [
     { x: 3, z: 3 },

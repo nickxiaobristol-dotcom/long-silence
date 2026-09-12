@@ -38,6 +38,97 @@ export const CORRIDORS = [
 
 export const WALKABLE = [...ROOMS, ...CORRIDORS];
 
+// Approximate collision footprints for the "solid" furniture and equipment
+// decorations.js places — the pieces a person couldn't walk through in
+// real life (consoles, tables, the reactor, crate stacks, lockers,
+// berths...). Rects/circles here are deliberately generous-but-inexact:
+// good enough to stop a straight walk-in, not a hitbox traced to the mesh.
+// Coordinates are hand-matched to decorations.js's own placements (see the
+// comments there); kept here rather than in decorations.js because
+// isWalkable is the single choke point the player (js/player.js) and every
+// wandering crew member (js/crew-behavior.js) already call every frame.
+// Every entry has been checked against: the 8 doorway gaps in
+// WALL_SEGMENTS (none block one), every crew spawn and interactable
+// coordinate in js/crew.js and js/interactables.js (none sit inside one),
+// and the wander waypoints in js/crew-behavior.js (moved clear of one
+// where they used to overlap).
+export const PROP_COLLIDERS = [
+  // --- Cockpit ---
+  { type: "circle", x: -13.05, z: 0, r: 0.65 }, // console bay
+  { type: "circle", x: -12.92, z: 1.5, r: 0.65 }, // console bay
+  { type: "circle", x: -12.52, z: 2.95, r: 0.65 }, // console bay
+  { type: "circle", x: -12.92, z: -1.5, r: 0.65 }, // console bay
+  { type: "circle", x: -12.52, z: -2.95, r: 0.65 }, // console bay
+  { type: "rect", minX: -12.65, maxX: -10.55, minZ: -3.89, maxZ: -3.47 }, // avionics/comms rack
+  { type: "rect", minX: -12.2, maxX: -9.8, minZ: 2.65, maxZ: 3.65 }, // nav chart table
+
+  // --- Common Area ---
+  { type: "rect", minX: -2.5, maxX: -0.6, minZ: 2.85, maxZ: 3.95 }, // mess table + bench
+  { type: "rect", minX: 4.29, maxX: 4.91, minZ: 1.4, maxZ: 4.3 }, // galley run
+  { type: "rect", minX: -2.98, maxX: -1.42, minZ: 4.33, maxZ: 4.83 }, // crew lockers, west pair
+  { type: "rect", minX: 1.42, maxX: 2.98, minZ: 4.33, maxZ: 4.83 }, // crew lockers, east pair
+  { type: "rect", minX: 4.4, maxX: 4.84, minZ: -3.19, maxZ: -1.41 }, // storage shelving
+  { type: "rect", minX: -2.85, maxX: -1.65, minZ: -4.85, maxZ: -4.35 }, // med station
+
+  // --- Engine Room ---
+  { type: "circle", x: 14.0, z: 0, r: 1.3 }, // reactor core
+  { type: "rect", minX: 9.2, maxX: 11.6, minZ: -3.78, maxZ: -3.06 }, // workbench
+  { type: "rect", minX: 11.95, maxX: 13.05, minZ: -3.75, maxZ: -3.62 }, // diagnostic terminal
+  { type: "rect", minX: 13.5, maxX: 15.9, minZ: -3.9, maxZ: -3.1 }, // equipment cabinets
+  { type: "circle", x: 8.75, z: 3.2, r: 0.4 }, // coolant tank
+  { type: "circle", x: 8.75, z: -3.2, r: 0.4 }, // coolant tank
+  { type: "rect", minX: 13.45, maxX: 15.75, minZ: 2.95, maxZ: 3.85 }, // heat exchanger
+
+  // --- Cargo Bay ---
+  { type: "rect", minX: -4.25, maxX: -2.35, minZ: -13.95, maxZ: -12.45 }, // west crate stack + pallet
+  { type: "rect", minX: 2.72, maxX: 3.15, minZ: -14.24, maxZ: -13.04 }, // east stack, base crate
+  { type: "rect", minX: 1.95, maxX: 2.65, minZ: -13.65, maxZ: -12.95 }, // east stack, second crate
+  { type: "circle", x: -1.6, z: -13.5, r: 0.45 }, // crate fallen on its side
+  { type: "circle", x: 4.24, z: -11.9, r: 0.35 }, // drum
+  { type: "circle", x: 3.62, z: -11.58, r: 0.35 }, // drum
+  { type: "circle", x: 4.28, z: -11.12, r: 0.35 }, // drum
+  { type: "rect", minX: 4.25, maxX: 4.65, minZ: -10.75, maxZ: -9.85 }, // leaning panel stack
+  { type: "rect", minX: -2.4, maxX: 2.4, minZ: -14.8, maxZ: -14.5 }, // aft container row
+  { type: "rect", minX: 2.85, maxX: 3.75, minZ: -14.66, maxZ: -14.14 }, // manifest terminal
+
+  // --- Crew Quarters ---
+  { type: "rect", minX: -3.95, maxX: -3.05, minZ: 10.0, maxZ: 12.0 }, // Kaia's berth
+  { type: "rect", minX: -3.95, maxX: -3.05, minZ: 12.4, maxZ: 14.4 }, // Corwin's berth
+  { type: "rect", minX: 3.05, maxX: 3.95, minZ: 10.0, maxZ: 12.0 }, // Amara's berth
+  { type: "rect", minX: 3.05, maxX: 3.95, minZ: 12.4, maxZ: 14.4 }, // Marcus's berth
+  { type: "rect", minX: -1.0, maxX: 1.0, minZ: 14.5, maxZ: 14.95 }, // Dessa's berth
+  { type: "rect", minX: -1.65, maxX: -0.65, minZ: 11.97, maxZ: 12.83 }, // off-watch table
+  { type: "rect", minX: -3.55, maxX: -1.65, minZ: 9.02, maxZ: 9.58 }, // wash station
+];
+
+function circleOverlapsCircle(x, z, r, px, pz, pr) {
+  const dx = x - px;
+  const dz = z - pz;
+  const rad = r + pr;
+  return dx * dx + dz * dz < rad * rad;
+}
+
+function circleOverlapsRect(x, z, r, rect) {
+  const cx = Math.max(rect.minX, Math.min(x, rect.maxX));
+  const cz = Math.max(rect.minZ, Math.min(z, rect.maxZ));
+  const dx = x - cx;
+  const dz = z - cz;
+  return dx * dx + dz * dz < r * r;
+}
+
+// True if a circle of the given radius centered at (x, z) overlaps any
+// solid prop's collision footprint. A seat is deliberately never in this
+// list: sitting (js/player.js's sitAt, js/crew-behavior.js's "sit"
+// activity) means occupying the same footprint as the chair, the same way
+// Dessa's sleep activity occupies her berth's footprint on purpose.
+export function isBlockedByProp(x, z, radius) {
+  return PROP_COLLIDERS.some((p) =>
+    p.type === "circle"
+      ? circleOverlapsCircle(x, z, radius, p.x, p.z, p.r)
+      : circleOverlapsRect(x, z, radius, p)
+  );
+}
+
 // Explicit wall segments (start/end points), hand-placed to leave gaps at
 // each corridor doorway rather than derived from the rects above — with
 // only four rooms this is far simpler and less error-prone than general
@@ -126,8 +217,10 @@ export function buildShip(scene) {
 }
 
 // True if a circle of the given radius centered at (x, z) fits entirely
-// inside at least one walkable rect (room or corridor).
+// inside at least one walkable rect (room or corridor) and doesn't overlap
+// a solid prop's collision footprint.
 export function isWalkable(x, z, radius) {
+  if (isBlockedByProp(x, z, radius)) return false;
   return WALKABLE.some(
     (rect) =>
       x - radius >= rect.minX &&
