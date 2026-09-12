@@ -3,6 +3,7 @@ import { buildShip } from "./ship.js";
 import { PlayerController } from "./player.js";
 import { buildCrew, findNearbyCrew } from "./crew.js";
 import { buildDecorations } from "./decorations.js";
+import { buildAtmosphere } from "./atmosphere.js";
 import { CREW_DIALOGUE } from "./dialogue-data.js";
 import {
   createDialogueState,
@@ -21,7 +22,6 @@ const dialogueLine = document.getElementById("dialogue-line");
 const dialogueChoices = document.getElementById("dialogue-choices");
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x05070a);
 
 const camera = new THREE.PerspectiveCamera(
   55,
@@ -32,14 +32,14 @@ const camera = new THREE.PerspectiveCamera(
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(window.devicePixelRatio);
+// Capped: the fog/accent-light rig in atmosphere.js is fill-rate bound, so
+// rendering a HiDPI screen at full device ratio costs more than it shows.
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.25;
 container.appendChild(renderer.domElement);
 
-scene.add(new THREE.AmbientLight(0x8899aa, 0.7));
-const keyLight = new THREE.DirectionalLight(0xffffff, 0.7);
-keyLight.position.set(5, 12, 6);
-scene.add(keyLight);
-
+buildAtmosphere(scene);
 buildShip(scene);
 buildCrew(scene);
 buildDecorations(scene);

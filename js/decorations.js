@@ -7,20 +7,28 @@ import * as THREE from "three";
 // spawn points (see CREW in crew.js), and the player's start point (1, 0)
 // so a decoration is never standing where a character needs to be.
 
-function addBox(scene, { w, h, d, x, y, z, color, rotY = 0 }) {
+// `emissive` marks a prop as its own light source (the viewport, the
+// reactor), so it stays readable once scene fog dims everything around it.
+function propMaterial(color, emissive) {
+  const params = { color };
+  if (emissive !== undefined) params.emissive = emissive;
+  return new THREE.MeshStandardMaterial(params);
+}
+
+function addBox(scene, { w, h, d, x, y, z, color, emissive, rotY = 0 }) {
   const mesh = new THREE.Mesh(
     new THREE.BoxGeometry(w, h, d),
-    new THREE.MeshStandardMaterial({ color })
+    propMaterial(color, emissive)
   );
   mesh.position.set(x, y, z);
   if (rotY) mesh.rotation.y = rotY;
   scene.add(mesh);
 }
 
-function addCylinder(scene, { r, h, x, y, z, color }) {
+function addCylinder(scene, { r, h, x, y, z, color, emissive }) {
   const mesh = new THREE.Mesh(
     new THREE.CylinderGeometry(r, r, h, 12),
-    new THREE.MeshStandardMaterial({ color })
+    propMaterial(color, emissive)
   );
   mesh.position.set(x, y, z);
   scene.add(mesh);
@@ -33,7 +41,16 @@ function buildCockpit(scene) {
   for (const z of [-3, -2, 2, 3]) {
     addBox(scene, { w: 0.6, h: 0.9, d: 0.5, x: -13.3, y: 0.45, z, color: 0x2f3b47 });
   }
-  addBox(scene, { w: 0.1, h: 0.7, d: 5.5, x: -13.92, y: 1.6, z: 0, color: 0x0d3b52 });
+  addBox(scene, {
+    w: 0.1,
+    h: 0.7,
+    d: 5.5,
+    x: -13.92,
+    y: 1.6,
+    z: 0,
+    color: 0x0d3b52,
+    emissive: 0x2f7ba8,
+  });
 
   // Captain's chair, tucked off to one side away from Kaia's spot (-10, 0)
   // and the doorway.
@@ -64,8 +81,24 @@ function buildEngineRoom(scene) {
     addBox(scene, { w: 1.2, h: 1.4, d: 0.9, x: 14.8, y: 0.7, z, color: 0x39352f });
   }
   // Reactor centerpiece.
-  addCylinder(scene, { r: 0.6, h: 1.8, x: 13, y: 0.9, z: 0, color: 0x1f6f6b });
-  addCylinder(scene, { r: 0.68, h: 0.08, x: 13, y: 1.82, z: 0, color: 0xd9a441 });
+  addCylinder(scene, {
+    r: 0.6,
+    h: 1.8,
+    x: 13,
+    y: 0.9,
+    z: 0,
+    color: 0x1f6f6b,
+    emissive: 0x10403e,
+  });
+  addCylinder(scene, {
+    r: 0.68,
+    h: 0.08,
+    x: 13,
+    y: 1.82,
+    z: 0,
+    color: 0xd9a441,
+    emissive: 0x9a5c15,
+  });
 
   // Warning stripe along the floor at the reactor's base.
   for (let i = 0; i < 6; i++) {
