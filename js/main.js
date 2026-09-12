@@ -1,7 +1,15 @@
 import * as THREE from "three";
 import { buildShip } from "./ship.js";
 import { PlayerController } from "./player.js";
-import { buildCrew, findNearbyCrew } from "./crew.js";
+import { buildCrew, findNearbyCrew, CREW } from "./crew.js";
+import { initCrewBehavior, updateCrewBehavior, setTalking } from "./crew-behavior.js";
+import { stepWalkCycle, CHARACTER_HEIGHT } from "./character.js";
+import {
+  buildInteractables,
+  findNearbyInteractable,
+  toggleInteractable,
+  promptFor,
+} from "./interactables.js";
 import { buildDecorations } from "./decorations.js";
 import { buildAtmosphere } from "./atmosphere.js";
 import { CREW_DIALOGUE } from "./dialogue-data.js";
@@ -16,6 +24,8 @@ import {
 
 const container = document.getElementById("scene-container");
 const interactPrompt = document.getElementById("interact-prompt");
+const actionPrompt = document.getElementById("action-prompt");
+const speechBubble = document.getElementById("speech-bubble");
 const dialoguePanel = document.getElementById("dialogue-panel");
 const dialogueSpeaker = document.getElementById("dialogue-speaker");
 const dialogueLine = document.getElementById("dialogue-line");
@@ -43,6 +53,8 @@ buildAtmosphere(scene);
 buildShip(scene);
 buildCrew(scene);
 buildDecorations(scene);
+buildInteractables(scene);
+initCrewBehavior();
 
 // Start in the Common Area, the ship's central hub.
 const player = new PlayerController(camera, 1, 0);
@@ -129,18 +141,47 @@ function handleChoice(choiceId) {
 function openDialogue(member) {
   dialogueOpen = true;
   activeMember = member;
+  setTalking(member.id, true, { x: player.x, z: player.z });
   const result = startConversation(CREW_DIALOGUE, member.id, dialogueState);
   renderSpeaker(member, result.activity);
   dialogueLine.textContent = result.line;
   renderChoices(result.choices);
   dialoguePanel.hidden = false;
   interactPrompt.hidden = true;
+  speechBubble.hidden = false;
 }
 
 function closeDialogue() {
   dialogueOpen = false;
+  if (activeMember) setTalking(activeMember.id, false);
   activeMember = null;
   dialoguePanel.hidden = true;
+  speechBubble.hidden = true;
+}
+
+// Step 3-of-this-pass: object interaction. A seat locks player movement
+// until stood up again (tracked here as sittingSeatId); console/locker
+// interactables are plain independent toggles with no movement effect.
+let sittingSeatId = null;
+let nearbyInteractable = null;
+
+function handleInteract() {
+  if (sittingSeatId) {
+    toggleInteractable(sittingSeatId);
+    player.standUp();
+    sittingSeatId = null;
+    return;
+  }
+  if (dialogueOpen || !nearbyInteractable) return;
+  const active = toggleInteractable(nearbyInteractable.id);
+  if (nearbyInteractable.type === "seat" && active) {
+    const facingAngle = Math.atan2(
+      nearbyInteractable.facing.x - nearbyInteractable.x,
+      nearbyInteractable.facing.z - nearbyInteractable.z
+    );
+    player.sitAt(nearbyInteractable.x, nearbyInteractable.z, facingAngle);
+    sittingSeatId = nearbyInteractable.id;
+  }
 }
 
 window.addEventListener("keydown", (e) => {
@@ -148,6 +189,8 @@ window.addEventListener("keydown", (e) => {
     if (!dialogueOpen && nearbyCrew) {
       openDialogue(nearbyCrew);
     }
+  } else if (e.code === "KeyF") {
+    handleInteract();
   } else if (e.code === "Escape" && dialogueOpen) {
     closeDialogue();
   }
@@ -161,6 +204,15 @@ window.addEventListener("keydown", (e) => {
 // the game reads this.
 window.__lsPlayer = player;
 
+// Same rationale as __lsPlayer above: a read-only handle so this pass's
+// verification script (test/feature-pass-verify.mjs) can check autonomous
+// crew movement and walk-cycle state without adding any gameplay-facing
+// API. Nothing in the game reads this either.
+window.__lsCrew = CREW;
+
+// Reused across frames to avoid an allocation per speech-bubble update.
+const _headPos = new THREE.Vector3();
+
 let lastTime = performance.now();
 function animate() {
   requestAnimationFrame(animate);
@@ -170,6 +222,14 @@ function animate() {
 
   player.update(dt);
 
+  updateCrewBehavior(dt);
+  for (const member of CREW) {
+    if (!member.marker) continue;
+    member.marker.position.set(member.curX, 0, member.curZ);
+    member.marker.rotation.y = member.facing;
+    stepWalkCycle(member.marker, dt, !!member.walking);
+  }
+
   nearbyCrew = findNearbyCrew(player.x, player.z);
   if (dialogueOpen && !nearbyCrew) closeDialogue();
   if (!dialogueOpen) {
@@ -178,6 +238,30 @@ function animate() {
       const activity = getActivity(nearbyCrew.id, Date.now());
       interactPrompt.textContent = `Press E to talk to ${nearbyCrew.name} (${activity})`;
     }
+  }
+
+  if (sittingSeatId) {
+    nearbyInteractable = null;
+    actionPrompt.hidden = false;
+    actionPrompt.textContent = "Press F to stand up";
+  } else if (dialogueOpen) {
+    nearbyInteractable = null;
+    actionPrompt.hidden = true;
+  } else {
+    nearbyInteractable = findNearbyInteractable(player.x, player.z);
+    actionPrompt.hidden = !nearbyInteractable;
+    if (nearbyInteractable) actionPrompt.textContent = promptFor(nearbyInteractable);
+  }
+
+  // Speech bubble: a small in-world indicator above whoever's currently
+  // speaking, projected from their live head position to screen space.
+  // Purely a visual accent on top of the dialogue panel below — it never
+  // carries any text of its own.
+  if (dialogueOpen && activeMember && activeMember.marker) {
+    _headPos.set(activeMember.marker.position.x, CHARACTER_HEIGHT + 0.18, activeMember.marker.position.z);
+    _headPos.project(camera);
+    speechBubble.style.left = `${(_headPos.x * 0.5 + 0.5) * window.innerWidth}px`;
+    speechBubble.style.top = `${(-_headPos.y * 0.5 + 0.5) * window.innerHeight}px`;
   }
 
   renderer.render(scene, camera);

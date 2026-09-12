@@ -27,10 +27,9 @@ html, body {
   pointer-events: none;
 }
 
-#interact-prompt {
+.prompt {
   position: absolute;
   left: 50%;
-  bottom: 44px;
   transform: translateX(-50%);
   padding: 6px 12px;
   background: rgba(10, 14, 18, 0.85);
@@ -39,6 +38,52 @@ html, body {
   font-size: 13px;
   color: #e8e8e8;
   pointer-events: none;
+}
+
+#interact-prompt {
+  bottom: 44px;
+}
+
+/* Stacked above #interact-prompt so both can show at once (e.g. standing
+   near a crew member who happens to be wandering past a prop). */
+#action-prompt {
+  bottom: 78px;
+  border-color: #4a5a3f;
+}
+
+/* In-world speech-bubble accent above the currently speaking character's
+   head, positioned every frame in js/main.js via 3D-to-screen projection.
+   Purely decorative next to #dialogue-panel below, which still carries the
+   actual line/choices. */
+#speech-bubble {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  padding: 3px 10px 5px;
+  background: rgba(232, 232, 232, 0.92);
+  color: #14181c;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0.05em;
+  pointer-events: none;
+  animation: speech-bob 1.4s ease-in-out infinite;
+}
+
+#speech-bubble::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: rgba(232, 232, 232, 0.92);
+  border-bottom: 0;
+}
+
+@keyframes speech-bob {
+  0%, 100% { margin-top: 0; }
+  50% { margin-top: -4px; }
 }
 
 #dialogue-panel {
