@@ -1,5 +1,6 @@
 import * as THREE from "three";
-import { OrbitControls } from "./vendor/three/examples/jsm/controls/OrbitControls.js";
+import { buildShip } from "./ship.js";
+import { PlayerController } from "./player.js";
 
 const container = document.getElementById("scene-container");
 
@@ -7,35 +8,27 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x05070a);
 
 const camera = new THREE.PerspectiveCamera(
-  60,
+  55,
   window.innerWidth / window.innerHeight,
   0.1,
   100
 );
-camera.position.set(4, 3, 6);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 container.appendChild(renderer.domElement);
 
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.target.set(0, 1, 0);
-controls.enableDamping = true;
-
-scene.add(new THREE.AmbientLight(0x8899aa, 0.6));
-const keyLight = new THREE.DirectionalLight(0xffffff, 0.8);
-keyLight.position.set(5, 8, 4);
+scene.add(new THREE.AmbientLight(0x8899aa, 0.7));
+const keyLight = new THREE.DirectionalLight(0xffffff, 0.7);
+keyLight.position.set(5, 12, 6);
 scene.add(keyLight);
 
-// Placeholder floor so there's something to orient against until the ship
-// layout (step 2) replaces this.
-const floor = new THREE.Mesh(
-  new THREE.PlaneGeometry(10, 10),
-  new THREE.MeshStandardMaterial({ color: 0x1c242b })
-);
-floor.rotation.x = -Math.PI / 2;
-scene.add(floor);
+buildShip(scene);
+
+// Start in the Common Area, the ship's central hub.
+const player = new PlayerController(camera, 1, 0);
+player.addTo(scene);
 
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
@@ -43,9 +36,14 @@ window.addEventListener("resize", () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
+let lastTime = performance.now();
 function animate() {
   requestAnimationFrame(animate);
-  controls.update();
+  const now = performance.now();
+  const dt = Math.min((now - lastTime) / 1000, 0.1);
+  lastTime = now;
+
+  player.update(dt);
   renderer.render(scene, camera);
 }
 animate();
