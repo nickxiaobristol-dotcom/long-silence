@@ -179,6 +179,47 @@ export const CREW_DIALOGUE = {
         },
       ],
     },
+    // Step 5: ship-level decision. Dessa is the one who brings contracts to
+    // the crew, so she's the natural trigger. Effects land on other crew
+    // (see their decisionReactions.contract banks below), not just her.
+    decision: {
+      id: "contract",
+      prompt: "There's a job on the board — pick who we work for this run.",
+      options: [
+        {
+          id: "compact",
+          label: "Take the Compact contract — steady pay, paperwork, no questions.",
+          effects: { dessa: 1, corwin: -1, amara: -1 },
+          response: "\"Money in the account and a client who pays on time.\" She doesn't look up. \"I'll take dull over broke, every time.\"",
+        },
+        {
+          id: "ridgeline",
+          label: "Take the Ridgeline contract — military logistics run, good pay, tighter scrutiny.",
+          effects: { dessa: 1, corwin: -1, kaia: -1 },
+          response: '"Ridgeline pays on time and doesn\'t haggle. That\'s the whole pitch, and it\'s enough for me."',
+        },
+        {
+          id: "drift",
+          label: "Take the Drift job — lower pay, but it keeps an outer-system supply line alive.",
+          effects: { corwin: 2, amara: 1, dessa: -1 },
+          response: "\"We'll be tight on fuel money this month.\" She shrugs. \"Corwin's people needed it more than my ledger did.\"",
+        },
+      ],
+    },
+    decisionReactions: {
+      marcusSecret: {
+        label: "Ask what she thinks about the Marcus situation",
+        cover: '"You kept that from me." She doesn\'t sound angry, exactly. "I hope you\'re right to."',
+        report: '"Good." She doesn\'t look up from her manifest. "I\'d rather know what\'s on my ship than like everyone on it."',
+        confront: '"Direct. I can respect direct." A pause. "Doesn\'t mean I\'m not filing it away."',
+      },
+      supplyRun: {
+        label: "Ask what she thinks about the supply run call",
+        compact: '"Full price stings, but at least nobody\'s shooting at us." She rubs her eyes. "I\'ll take boring."',
+        driftOutpost: '"That\'s coming out of this month\'s margin," she says, without much heat behind it. "Corwin owes me for that one."',
+        shortcut: '"You do know what happens if Ridgeline stops us with an expired manifest," she says. "I hope you know. I don\'t."',
+      },
+    },
   },
 
   kaia: {
@@ -324,6 +365,22 @@ export const CREW_DIALOGUE = {
         },
       ],
     },
+    // Step 5: reactions to decisions triggered elsewhere (Dessa's contract
+    // choice, Corwin's supply run choice). Not a decision trigger herself.
+    decisionReactions: {
+      contract: {
+        label: "Ask what she thinks about the contract the Captain took",
+        compact: '"Compact\'s fine. Predictable." A beat. "I can work with predictable."',
+        ridgeline: 'Her jaw tightens, just slightly. "Understood. I\'ll fly the route. Don\'t expect me to enjoy the insignia on the dock."',
+        drift: '"Didn\'t expect that call," she says, recalibrating something on her console that doesn\'t need it. "Not a complaint."',
+      },
+      supplyRun: {
+        label: "Ask what she thinks about the supply run call",
+        compact: '"Slow and clean. I can fly that in my sleep." Which, from her, is a compliment to the plan.',
+        driftOutpost: '"Longer route, but nobody\'s going to stop us to ask questions." She sounds almost relaxed about it.',
+        shortcut: 'Her whole posture changes — sharper, more alert. "Ridgeline lane. Copy that." She doesn\'t say she\'s flown it before. She doesn\'t have to.',
+      },
+    },
   },
 
   corwin: {
@@ -460,6 +517,47 @@ export const CREW_DIALOGUE = {
         },
       ],
     },
+    // Step 5: Corwin triggers the supply-run decision (a ship crisis, his
+    // domain), and reacts to the contract and Marcus-secret decisions
+    // triggered by Dessa and Marcus respectively.
+    decision: {
+      id: "supplyRun",
+      prompt: "Coolant lines are failing and we're burning through our margin — we need to restock somewhere, soon.",
+      options: [
+        {
+          id: "compact",
+          label: "Dock at the Compact depot — full price, no trouble.",
+          effects: { corwin: -1, dessa: 1 },
+          response: "\"Compact depot it is.\" He doesn't hide the disgust. \"At least their parts are real, I'll give them that.\"",
+        },
+        {
+          id: "driftOutpost",
+          label: "Detour to a Drift outpost — cheaper, and it keeps them running too.",
+          effects: { corwin: 2, amara: 1, dessa: -1 },
+          response: "He actually claps you on the shoulder, which is new. \"Now that's the right call. I'll square it with the Captain.\"",
+        },
+        {
+          id: "shortcut",
+          label: "Cut through the old Ridgeline patrol lane — faster, risks a stop-and-search.",
+          effects: { kaia: 1, marcus: 1, dessa: -1, corwin: -1 },
+          response: "\"You want to fly through Ridgeline space on fumes and hope,\" he says flatly. \"That's Kaia's problem, not mine. I just keep the engines from exploding.\"",
+        },
+      ],
+    },
+    decisionReactions: {
+      contract: {
+        label: "Ask what he thinks about the contract the Captain took",
+        compact: '"Compact money. Of course." He doesn\'t look up from the manifold he\'s rewiring. "Ask me again when the Drift\'s the one that needs saving and see who shows up."',
+        ridgeline: '"Ridgeline." He sets down his tool like it weighs more than it did a second ago. "Same people who taxed my station into the ground. Good to know where we stand."',
+        drift: 'He actually smiles, which is rare. "Didn\'t think she had it in her. Tell the Captain I said thanks. Or don\'t — she\'d hate that."',
+      },
+      marcusSecret: {
+        label: "Ask what he thinks about the Marcus situation",
+        cover: '"You\'re covering for a guy who won\'t tell you his own name." He shakes his head. "Your funeral."',
+        report: '"Finally," he mutters. "Somebody on this ship still asks questions."',
+        confront: '"Better than nothing," he says, grudging. "Still think there\'s more he\'s not saying. There always is."',
+      },
+    },
   },
 
   amara: {
@@ -594,6 +692,24 @@ export const CREW_DIALOGUE = {
         },
       ],
     },
+    // Step 5: reactions to the contract and supply-run decisions triggered
+    // by Dessa and Corwin. Amara doesn't trigger a decision of her own here
+    // — her existing relationshipChoice above already covers her personal
+    // stake in resource choices.
+    decisionReactions: {
+      contract: {
+        label: "Ask what she thinks about the contract the Captain took",
+        compact: '"Compact pays reliably," she says, in a voice that makes it sound like a diagnosis. "I won\'t pretend that\'s nothing. I\'ll also be watching the cargo manifest."',
+        ridgeline: 'She\'s quiet for a second too long. "It\'s money. I understand why. I don\'t have to like who signs the check."',
+        drift: '"Good," she says simply, and doesn\'t elaborate, like saying more might jinx it.',
+      },
+      supplyRun: {
+        label: "Ask what she thinks about the supply run call",
+        compact: '"Fine parts, full markup." She shrugs. "Nobody on that outpost goes without because of us. There\'s that, at least."',
+        driftOutpost: '"Good," she says, and for once doesn\'t qualify it with anything.',
+        shortcut: '"I hope whatever we saved in fuel is worth it, if that lane isn\'t as quiet as you think," she says, already checking the medkit inventory.',
+      },
+    },
   },
 
   marcus: {
@@ -725,6 +841,42 @@ export const CREW_DIALOGUE = {
           response: 'His expression goes flat and polite. "Fair question." He doesn\'t answer it. He never does.',
         },
       ],
+    },
+    // Step 5: resolves the mid-game tension CREW.md leaves open around
+    // Marcus's absences and unexplained comms. Gated behind talkCount so it
+    // doesn't surface before the player's spoken to him more than once.
+    decision: {
+      id: "marcusSecret",
+      minTalkCount: 2,
+      prompt: "A coded comm just came through for Marcus, and he doesn't move fast enough to hide that you saw it.",
+      options: [
+        {
+          id: "cover",
+          label: '"Whatever that was, it stays between us."',
+          effects: { marcus: 2, dessa: -1, corwin: -1 },
+          response: 'Something in him unlocks, just a fraction. "I won\'t forget that. I mean it."',
+        },
+        {
+          id: "report",
+          label: '"I\'m telling the Captain what I saw."',
+          effects: { marcus: -2, dessa: 1, corwin: 1 },
+          response: 'He doesn\'t argue. Doesn\'t explain either. "Do what you have to do." He walks off before you can say more.',
+        },
+        {
+          id: "confront",
+          label: '"Tell me what that was, right now, or I go to the Captain."',
+          effects: { marcus: 1, corwin: 1 },
+          response: 'A long pause. "...It\'s an old contact. Checking if I\'m still breathing. That\'s the truth, far as I\'ll give it to you today." It\'s not everything. It\'s more than he\'s ever said.',
+        },
+      ],
+    },
+    decisionReactions: {
+      supplyRun: {
+        label: "Ask what he thinks about the supply run call",
+        compact: '"Depot\'s clean. Predictable." He shrugs. "I like predictable."',
+        driftOutpost: '"Outpost\'s got its own security, informal as it is," he says. "I\'ll stay sharp anyway. Habit."',
+        shortcut: '"Ridgeline lane." Something flickers behind his eyes, gone as fast as it came. "I\'ll be ready if it goes sideways. It might."',
+      },
     },
   },
 };

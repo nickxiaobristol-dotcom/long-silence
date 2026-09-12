@@ -9,6 +9,7 @@ import {
   startConversation,
   selectTopic,
   resolveRelationshipChoice,
+  resolveDecision,
 } from "./dialogue.js";
 
 const container = document.getElementById("scene-container");
@@ -89,6 +90,21 @@ function renderRelationshipOptions(prompt, options) {
   }
 }
 
+function renderDecisionOptions(prompt, decisionId, options) {
+  dialogueLine.textContent = prompt;
+  dialogueChoices.innerHTML = "";
+  for (const option of options) {
+    const li = document.createElement("li");
+    li.textContent = option.label;
+    li.addEventListener("click", () => {
+      const result = resolveDecision(CREW_DIALOGUE, activeMember.id, dialogueState, decisionId, option.id);
+      dialogueLine.textContent = result.line;
+      renderChoices(result.choices);
+    });
+    dialogueChoices.appendChild(li);
+  }
+}
+
 function handleChoice(choiceId) {
   const result = selectTopic(CREW_DIALOGUE, activeMember.id, dialogueState, choiceId);
   if (result.done) {
@@ -97,6 +113,10 @@ function handleChoice(choiceId) {
   }
   if (result.isRelationshipChoice) {
     renderRelationshipOptions(result.prompt, result.options);
+    return;
+  }
+  if (result.isDecision) {
+    renderDecisionOptions(result.prompt, result.decisionId, result.options);
     return;
   }
   dialogueLine.textContent = result.line;

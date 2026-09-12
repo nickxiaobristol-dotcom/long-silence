@@ -31,6 +31,22 @@ function ensureMemberState(state, memberId) {
   return state[memberId];
 }
 
+// Step 5: ship/story-level decisions live in a reserved key on the same
+// state object rather than a second state blob threaded through main.js.
+// `__decisions` can't collide with a real crew id (all lowercase, no
+// underscore), so plain per-member state (`state.kaia = {...}`, used by
+// existing tests) keeps working untouched. Maps decision id -> chosen
+// option id, so "is this decision resolved, and to what" is one lookup.
+function ensureDecisionState(state) {
+  if (!state.__decisions) state.__decisions = {};
+  return state.__decisions;
+}
+
+// Outcome of a resolved decision (an option id), or null if not yet made.
+export function getDecisionOutcome(state, decisionId) {
+  return ensureDecisionState(state)[decisionId] ?? null;
+}
+
 // Mood buckets the relationship value into which fragment pool to draw
 // from. Kept as three buckets (cool/neutral/warm) rather than a
 // continuous scale because the content bank is hand-authored per bucket.
@@ -81,7 +97,7 @@ export function pickLine(pool, memberState, rng = Math.random) {
   return line;
 }
 
-function buildChoices(dialogueData, memberId, memberState) {
+function buildChoices(dialogueData, memberId, memberState, decisionsState) {
   const bank = dialogueData[memberId];
   const choices = [
     { id: "topic:ship", label: "Ask about the ship" },
@@ -96,6 +112,23 @@ function buildChoices(dialogueData, memberId, memberState) {
   if (!memberState.choiceResolved && bank.relationshipChoice) {
     choices.push({ id: "choice:relationship", label: bank.relationshipChoice.prompt });
   }
+  // Ship/story-level decision (step 5): offered once, then locked out for
+  // the rest of the session once decisionsState records an outcome.
+  if (bank.decision && decisionsState[bank.decision.id] === undefined) {
+    if (memberState.talkCount >= (bank.decision.minTalkCount || 0)) {
+      choices.push({ id: `decision:${bank.decision.id}`, label: bank.decision.prompt });
+    }
+  }
+  // Reactions to decisions resolved elsewhere become available as soon as
+  // that decision has an outcome, so a crew member can react to a call
+  // made in someone else's conversation.
+  if (bank.decisionReactions) {
+    for (const decisionId of Object.keys(bank.decisionReactions)) {
+      if (decisionsState[decisionId] !== undefined) {
+        choices.push({ id: `topic:reaction_${decisionId}`, label: bank.decisionReactions[decisionId].label });
+      }
+    }
+  }
   choices.push({ id: "exit", label: "End conversation" });
   return choices;
 }
@@ -106,6 +139,7 @@ function buildChoices(dialogueData, memberId, memberState) {
 export function startConversation(dialogueData, memberId, state, now = Date.now(), rng = Math.random) {
   const bank = dialogueData[memberId];
   const memberState = ensureMemberState(state, memberId);
+  const decisionsState = ensureDecisionState(state);
   const mood = getMood(memberState.relationship);
 
   const line = memberState.hasMet
@@ -121,16 +155,17 @@ export function startConversation(dialogueData, memberId, state, now = Date.now(
     room: bank.room,
     activity: getActivity(memberId, now),
     talkCount: memberState.talkCount,
-    choices: buildChoices(dialogueData, memberId, memberState),
+    choices: buildChoices(dialogueData, memberId, memberState, decisionsState),
   };
 }
 
-// Handles picking a topic (or exiting). Relationship-choice topics don't
-// resolve here — they return their options for the caller (UI) to present
-// separately via resolveRelationshipChoice.
+// Handles picking a topic (or exiting). Relationship-choice and decision
+// topics don't resolve here — they return their options for the caller
+// (UI) to present separately via resolveRelationshipChoice/resolveDecision.
 export function selectTopic(dialogueData, memberId, state, choiceId, now = Date.now(), rng = Math.random) {
   const bank = dialogueData[memberId];
   const memberState = ensureMemberState(state, memberId);
+  const decisionsState = ensureDecisionState(state);
 
   if (choiceId === "exit") {
     return { done: true, line: null, choices: [] };
@@ -145,27 +180,75 @@ export function selectTopic(dialogueData, memberId, state, choiceId, now = Date.
     };
   }
 
+  if (choiceId.startsWith("decision:")) {
+    const decisionId = choiceId.slice("decision:".length);
+    return {
+      done: false,
+      isDecision: true,
+      decisionId,
+      prompt: bank.decision.prompt,
+      options: bank.decision.options,
+    };
+  }
+
+  if (choiceId.startsWith("topic:reaction_")) {
+    const decisionId = choiceId.slice("topic:reaction_".length);
+    const outcome = decisionsState[decisionId];
+    const line = bank.decisionReactions[decisionId][outcome];
+    return { done: false, line, choices: buildChoices(dialogueData, memberId, memberState, decisionsState) };
+  }
+
   if (choiceId === "topic:idle") {
     const activity = getActivity(memberId, now);
     const line = pickLine(bank.idle[activity], memberState, rng);
-    return { done: false, line, activity, choices: buildChoices(dialogueData, memberId, memberState) };
+    return { done: false, line, activity, choices: buildChoices(dialogueData, memberId, memberState, decisionsState) };
   }
 
   if (choiceId.startsWith("topic:about_")) {
     const otherId = choiceId.slice("topic:about_".length);
     const mood = getMood(memberState.relationship);
     const line = pickLine(bank.topics[`about_${otherId}`][mood], memberState, rng);
-    return { done: false, line, mood, choices: buildChoices(dialogueData, memberId, memberState) };
+    return { done: false, line, mood, choices: buildChoices(dialogueData, memberId, memberState, decisionsState) };
   }
 
   if (choiceId.startsWith("topic:")) {
     const topic = choiceId.slice("topic:".length);
     const mood = getMood(memberState.relationship);
     const line = pickLine(bank.topics[topic][mood], memberState, rng);
-    return { done: false, line, mood, choices: buildChoices(dialogueData, memberId, memberState) };
+    return { done: false, line, mood, choices: buildChoices(dialogueData, memberId, memberState, decisionsState) };
   }
 
   throw new Error(`Unknown dialogue choice: ${choiceId}`);
+}
+
+// Applies a ship/story-level decision (step 5): records the outcome so it
+// can't be re-triggered this session, shifts relationship on every crew
+// member named in the chosen option's effects (not just the one speaking),
+// and returns the speaker's own in-character reaction line.
+export function resolveDecision(dialogueData, memberId, state, decisionId, optionId) {
+  const bank = dialogueData[memberId];
+  const memberState = ensureMemberState(state, memberId);
+  const decisionsState = ensureDecisionState(state);
+
+  if (!bank.decision || bank.decision.id !== decisionId) {
+    throw new Error(`${memberId} has no decision ${decisionId}`);
+  }
+  if (decisionsState[decisionId] !== undefined) {
+    throw new Error(`Decision already resolved: ${decisionId}`);
+  }
+  const option = bank.decision.options.find((o) => o.id === optionId);
+  if (!option) throw new Error(`Unknown decision option: ${optionId}`);
+
+  decisionsState[decisionId] = optionId;
+  for (const [affectedId, delta] of Object.entries(option.effects || {})) {
+    ensureMemberState(state, affectedId).relationship += delta;
+  }
+
+  return {
+    done: false,
+    line: option.response,
+    choices: buildChoices(dialogueData, memberId, memberState, decisionsState),
+  };
 }
 
 // Applies a relationship-affecting choice: shifts relationship by the
@@ -174,6 +257,7 @@ export function selectTopic(dialogueData, memberId, state, choiceId, now = Date.
 export function resolveRelationshipChoice(dialogueData, memberId, state, optionId) {
   const bank = dialogueData[memberId];
   const memberState = ensureMemberState(state, memberId);
+  const decisionsState = ensureDecisionState(state);
   const option = bank.relationshipChoice.options.find((o) => o.id === optionId);
   if (!option) throw new Error(`Unknown relationship option: ${optionId}`);
 
@@ -185,6 +269,6 @@ export function resolveRelationshipChoice(dialogueData, memberId, state, optionI
     line: option.response,
     relationship: memberState.relationship,
     mood: getMood(memberState.relationship),
-    choices: buildChoices(dialogueData, memberId, memberState),
+    choices: buildChoices(dialogueData, memberId, memberState, decisionsState),
   };
 }
