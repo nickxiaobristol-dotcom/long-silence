@@ -14,25 +14,35 @@ const ARM_HEIGHT = 0.55;
 
 export function buildHumanoid(color) {
   const group = new THREE.Group();
-  const material = new THREE.MeshStandardMaterial({ color });
+  const base = new THREE.Color(color);
+  // Torso keeps the crew member's identifying color; limbs read as darker
+  // fatigues/boots and the head gets a touch of lift, so the flat single-color
+  // silhouette breaks up a little without needing a per-crew palette.
+  const torsoMaterial = new THREE.MeshStandardMaterial({ color: base });
+  const limbMaterial = new THREE.MeshStandardMaterial({
+    color: base.clone().multiplyScalar(0.7),
+  });
+  const headMaterial = new THREE.MeshStandardMaterial({
+    color: base.clone().lerp(new THREE.Color(0xffffff), 0.16),
+  });
 
   const legGeometry = new THREE.BoxGeometry(0.18, LEG_HEIGHT, 0.18);
   for (const side of [-1, 1]) {
-    const leg = new THREE.Mesh(legGeometry, material);
+    const leg = new THREE.Mesh(legGeometry, limbMaterial);
     leg.position.set(side * 0.13, LEG_HEIGHT / 2, 0);
     group.add(leg);
   }
 
   const torso = new THREE.Mesh(
     new THREE.BoxGeometry(0.5, TORSO_HEIGHT, 0.28),
-    material
+    torsoMaterial
   );
   torso.position.set(0, LEG_HEIGHT + TORSO_HEIGHT / 2, 0);
   group.add(torso);
 
   const armGeometry = new THREE.BoxGeometry(0.14, ARM_HEIGHT, 0.14);
   for (const side of [-1, 1]) {
-    const arm = new THREE.Mesh(armGeometry, material);
+    const arm = new THREE.Mesh(armGeometry, limbMaterial);
     arm.position.set(
       side * 0.32,
       LEG_HEIGHT + TORSO_HEIGHT - ARM_HEIGHT / 2,
@@ -43,7 +53,7 @@ export function buildHumanoid(color) {
 
   const head = new THREE.Mesh(
     new THREE.SphereGeometry(HEAD_RADIUS, 8, 6),
-    material
+    headMaterial
   );
   head.position.set(0, LEG_HEIGHT + TORSO_HEIGHT + HEAD_RADIUS, 0);
   group.add(head);

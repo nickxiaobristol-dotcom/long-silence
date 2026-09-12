@@ -1124,8 +1124,10 @@ function cargoNet(b, o) {
 
 function buildCargoBay(b) {
   // West stack: pallet base, three crates stacked askew, net over the face.
+  // The base crate got its own small rotY rather than sitting dead-square
+  // on the pallet — nobody drops a 1.35m crate perfectly true by hand.
   pallet(b, { x: -3.3, z: -13.2, w: 1.9, d: 1.5 });
-  crate(b, { x: -3.3, y: 0.16, z: -13.2, s: 1.35, color: PAL.crateA });
+  crate(b, { x: -3.3, y: 0.16, z: -13.2, s: 1.35, color: PAL.crateA, rotY: 0.07 });
   crate(b, { x: -3.52, y: 1.55, z: -13.38, s: 0.9, color: PAL.crateB, rotY: 0.18 });
   crate(b, { x: -2.92, y: 1.55, z: -12.82, s: 0.62, color: PAL.crateC, rotY: -0.3 });
   cargoNet(b, { x: -3.3, z: -12.46, w: 1.3, h: 1.5 });
@@ -1133,15 +1135,31 @@ function buildCargoBay(b) {
     b.torus({ r: 0.09, tube: 0.025, x, y: 0.02, z, rotX: HALF_PI, color: PAL.steelDark });
   }
 
-  // East stack: mixed crates, a tall one on end, drums, leaning panels.
-  crate(b, { x: 3.4, z: -13.6, s: 1.2, color: PAL.crateD });
-  crate(b, { x: 3.4, y: 1.24, z: -13.6, s: 0.95, color: PAL.crateA, rotY: 0.12 });
-  crate(b, { x: 2.3, z: -13.3, s: 0.7, h: 1.6, color: PAL.crateB });
+  // East stack: mixed crates, a tall one on end, drums, leaning panels. The
+  // top crate is offset off the base crate's centre and tipped on two axes
+  // rather than spun cleanly on one — a stack a forklift actually dropped,
+  // not one placed on a grid.
+  crate(b, { x: 3.32, z: -13.64, s: 1.2, color: PAL.crateD, rotY: -0.05 });
+  crate(b, { x: 3.56, y: 1.24, z: -13.42, s: 0.95, color: PAL.crateA, rotY: 0.26, rotZ: 0.05 });
+  crate(b, { x: 2.3, z: -13.3, s: 0.7, h: 1.6, color: PAL.crateB, rotY: 0.15 });
+  // A crate that slid off the stack during loading, lying on its side out
+  // in the open floor between the two stacks.
+  crate(b, { x: -1.6, y: 0.33, z: -13.5, s: 0.62, color: PAL.crateD, rotZ: 1.2, rotY: 0.4 });
   drum(b, { x: 4.24, z: -11.9 });
   drum(b, { x: 3.62, z: -11.58, r: 0.24, h: 0.66, color: PAL.copper });
   drum(b, { x: 4.28, z: -11.12, r: 0.26, h: 0.72, color: PAL.crateC });
+  const leanJitter = seeded(46);
   for (let i = 0; i < 4; i++) {
-    b.box({ w: 0.07, h: 1.5, d: 0.9, x: 4.6 - i * 0.09, y: 0.76, z: -10.3, rotZ: -0.12, color: i % 2 ? PAL.crateC : PAL.steelDark });
+    b.box({
+      w: 0.07,
+      h: 1.5,
+      d: 0.9,
+      x: 4.6 - i * 0.09,
+      y: 0.76,
+      z: -10.3,
+      rotZ: -0.12 + (leanJitter() - 0.5) * 0.16,
+      color: i % 2 ? PAL.crateC : PAL.steelDark,
+    });
   }
   // Ratchet straps over the east stack.
   for (const z of [-13.28, -13.92]) {
@@ -1159,8 +1177,11 @@ function buildCargoBay(b) {
     { x: 0.5, w: 1.2, h: 1.3, color: PAL.crateA },
     { x: 1.8, w: 1.15, h: 1.0, color: PAL.crateB },
   ];
+  const rowJitter = seeded(71);
   for (const c of containers) {
-    b.at({ x: c.x, z: -14.45 }, (p) => {
+    const z = -14.45 + (rowJitter() - 0.5) * 0.1;
+    const rotY = (rowJitter() - 0.5) * 0.1;
+    b.at({ x: c.x, z, rotY }, (p) => {
       p.box({ w: c.w, h: c.h, d: 0.7, y: c.h / 2, color: c.color });
       p.box({ w: c.w * 0.88, h: c.h * 0.84, d: 0.03, y: c.h / 2, z: 0.36, color: PAL.hullDark });
       for (const sx of [-1, 1]) {
@@ -1219,6 +1240,21 @@ function buildCargoBay(b) {
   pallet(b, { x: -4.1, z: -9.9 });
   pallet(b, { x: -4.1, y: 0.17, z: -9.9, rotY: 0.08 });
   pallet(b, { x: 4.52, y: 0.62, z: -10.95, rotZ: -1.35 });
+
+  // A service hose snaking along the west bulkhead behind the spare
+  // pallets, clipped up rather than routed neatly — a "lived-in" line
+  // nobody's got round to properly stowing.
+  pipeRun(b, {
+    axis: "z",
+    from: -13.7,
+    to: -10.3,
+    at: -4.72,
+    y: 0.14,
+    r: 0.045,
+    color: PAL.rust,
+    flangeStep: 2.4,
+    flangeColor: PAL.steelDark,
+  });
 
   // Netting coiled on the east wall.
   b.at({ x: 4.78, y: 1.3, z: -12.6, rotY: -HALF_PI }, (p) => {
