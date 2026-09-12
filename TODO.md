@@ -187,3 +187,54 @@ from spawn autonomously and "Press E to talk" still finds them there,
 confirmed sitting in the pilot's seat flips `player.sitting` and bends the
 rig, and confirmed the speech bubble appears/disappears with the dialogue
 panel — zero console or page errors throughout.
+
+## Post-v1: Furniture collision and a richer NPC activity repertoire
+
+Two fixes/features layered on the movement & interaction pass above,
+neither touching dialogue, decision logic, or existing wall/corridor
+collision.
+
+**Furniture collision** (`js/ship.js`): only room/corridor boundaries ever
+blocked movement, so the player and wandering crew walked straight through
+the reactor, consoles, tables, crate stacks, lockers and berths
+decorations.js places. `PROP_COLLIDERS` is a hand-matched set of
+rects/circles approximating the footprint of every prop substantial
+enough that a person couldn't walk through it, checked from `isWalkable` —
+the single choke point `js/player.js` and `js/crew-behavior.js` already
+called every frame, so both pick up furniture collision without either
+caller changing. Seats are deliberately excluded (sitting/sleeping means
+occupying the chair's/berth's own footprint on purpose). Three of the
+existing crew wander waypoints sat inside a prop's new footprint and were
+nudged to nearby clear floor.
+
+**Richer NPC activity repertoire** (`js/crew-behavior.js`, `js/character.js`):
+extends the wander-only waypoint system into an ordered per-crew list of
+"stops" that mix walking with stationary activities — sitting (Kaia in the
+pilot's seat, Dessa and Marcus at the mess table), sitting and
+reading/taking notes (Corwin at his workbench, Amara checking cargo
+inventory), leaning over a console (Corwin at the reactor), a repeated
+wipe-motion cleaning pass (Amara in the Cargo Bay), and sleep (Dessa
+commutes through the Quarters Corridor via a hand-authored waypoint chain
+to her own Crew Quarters berth, lying down for several seconds before
+walking back). A rare, purely cosmetic stumble-and-recover can interrupt
+any wander segment. All of it reuses `character.js`'s existing
+cheap-primitive-rotation rig: a forward tilt for leaning, raised arms
+holding a small prop mesh for reading, one arm swinging for cleaning, and
+a 90-degree tip for lying down. `js/main.js` reads the new `pose` field
+`updateCrewBehavior` sets on each crew member (alongside the existing
+curX/curZ/facing/walking) to pick the right pose function each frame.
+
+Covered by new cases in `test/crew-behavior.test.mjs` (an activity pose
+gets exercised over time, Dessa completes a full sleep-and-wake cycle
+snapping onto and off her berth's collision footprint by design, a forced
+stumble never moves anyone) plus new furniture-collision cases in
+`test/ship.test.mjs` (a prop blocks its own center, the reactor/a cockpit
+console/the mess table each block a straight walk-in, no prop covers a
+doorway, every crew/player spawn stays clear) — `npm test` is 64/64.
+Verified headlessly in `test/collision-behavior-verify.mjs` (Playwright,
+run manually, not a project dependency): confirmed the player is
+physically stopped walking straight at both the reactor and the Common
+Area mess table, caught a crew member mid-activity (sitting) in a
+screenshot, confirmed "Press E to talk" still opens dialogue on a crew
+member mid-activity, and ran an extended session (observing an actual
+stumble along the way) with zero console or page errors throughout.

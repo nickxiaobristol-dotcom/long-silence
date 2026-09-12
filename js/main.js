@@ -3,7 +3,19 @@ import { buildShip } from "./ship.js";
 import { PlayerController } from "./player.js";
 import { buildCrew, findNearbyCrew, CREW } from "./crew.js";
 import { initCrewBehavior, updateCrewBehavior, setTalking } from "./crew-behavior.js";
-import { stepWalkCycle, CHARACTER_HEIGHT } from "./character.js";
+import {
+  stepWalkCycle,
+  setSitPose,
+  setLeanPose,
+  setReadPose,
+  setHoldingProp,
+  setSleepPose,
+  stepCleanCycle,
+  stopCleanCycle,
+  applyStumble,
+  clearStumble,
+  CHARACTER_HEIGHT,
+} from "./character.js";
 import {
   buildInteractables,
   findNearbyInteractable,
@@ -210,6 +222,74 @@ window.__lsPlayer = player;
 // API. Nothing in the game reads this either.
 window.__lsCrew = CREW;
 
+// A crew member's berth sits at floor height; this is roughly the
+// mattress top (see props.js's berth()), so lying down doesn't clip into
+// it or float above it.
+const SLEEP_Y = 0.5;
+
+// Drives a crew member's live marker off the plain fields
+// js/crew-behavior.js sets on them each frame (curX/curZ/facing/walking/
+// pose), picking whichever js/character.js pose function matches
+// member.pose. Reset-then-apply rather than incremental toggling, so a
+// pose left over from the previous frame's activity never lingers into
+// the next one.
+function applyCrewPose(member, dt) {
+  const marker = member.marker;
+  const pose = member.walking ? "walk" : member.pose || "idle";
+
+  if (pose === "sleep") {
+    marker.position.set(member.curX, SLEEP_Y, member.curZ);
+    marker.rotation.y = member.facing;
+    setSleepPose(marker, true);
+    return;
+  }
+  setSleepPose(marker, false);
+  marker.position.set(member.curX, 0, member.curZ);
+  marker.rotation.y = member.facing;
+
+  if (pose === "stumble") {
+    clearStumble(marker);
+    applyStumble(marker, member.stumbleProgress || 0);
+    setSitPose(marker, false);
+    setLeanPose(marker, false);
+    setReadPose(marker, false);
+    setHoldingProp(marker, false);
+    stopCleanCycle(marker);
+    stepWalkCycle(marker, dt, false);
+    return;
+  }
+  clearStumble(marker);
+
+  if (pose === "sit" || pose === "sit_read") {
+    setSitPose(marker, true);
+    setReadPose(marker, pose === "sit_read");
+    setHoldingProp(marker, pose === "sit_read");
+    setLeanPose(marker, false);
+    stopCleanCycle(marker);
+    stepWalkCycle(marker, dt, false);
+    return;
+  }
+  setSitPose(marker, false);
+  setReadPose(marker, false);
+  setHoldingProp(marker, false);
+
+  if (pose === "lean") {
+    setLeanPose(marker, true);
+    stopCleanCycle(marker);
+    stepWalkCycle(marker, dt, false);
+    return;
+  }
+  setLeanPose(marker, false);
+
+  if (pose === "clean") {
+    stepCleanCycle(marker, dt);
+    return;
+  }
+  stopCleanCycle(marker);
+
+  stepWalkCycle(marker, dt, pose === "walk");
+}
+
 // Reused across frames to avoid an allocation per speech-bubble update.
 const _headPos = new THREE.Vector3();
 
@@ -225,9 +305,7 @@ function animate() {
   updateCrewBehavior(dt);
   for (const member of CREW) {
     if (!member.marker) continue;
-    member.marker.position.set(member.curX, 0, member.curZ);
-    member.marker.rotation.y = member.facing;
-    stepWalkCycle(member.marker, dt, !!member.walking);
+    applyCrewPose(member, dt);
   }
 
   nearbyCrew = findNearbyCrew(player.x, player.z);

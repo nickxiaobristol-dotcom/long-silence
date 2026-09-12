@@ -22,6 +22,16 @@ const MAX_LEG_SWING = 0.55; // radians
 const ARM_SWING_RATIO = 0.8; // arms swing a bit less than legs
 const SIT_BEND = -1.3; // radians; thighs rotated up toward horizontal
 
+// Stationary-activity pose tuning (post-v1 behavior pass). Same
+// cheap-primitive-rotation approach as the walk cycle and sit pose above —
+// no new geometry beyond the one held-prop mesh in buildHumanoid.
+const LEAN_TILT = -0.28; // whole-body forward tilt, working a console
+const LEAN_ARM = -1.05;
+const READ_ARM = -1.0; // arms raised in front, holding the prop, while seated
+const CLEAN_HZ = 1.8; // wipe-motion cycles/second
+const CLEAN_ARM_BASE = -0.9;
+const CLEAN_ARM_SWING = 0.5;
+
 export function buildHumanoid(color) {
   const group = new THREE.Group();
   const base = new THREE.Color(color);
@@ -80,12 +90,26 @@ export function buildHumanoid(color) {
   head.position.set(0, LEG_HEIGHT + TORSO_HEIGHT + HEAD_RADIUS, 0);
   group.add(head);
 
+  // A small held prop (clipboard/book), hung under the right arm's own
+  // pivot so it moves with that arm's rotation for free. Hidden by
+  // default; setHoldingProp toggles it for the "sit and read/take notes"
+  // activity pose in js/crew-behavior.js.
+  const heldProp = new THREE.Mesh(
+    new THREE.BoxGeometry(0.16, 0.02, 0.22),
+    new THREE.MeshStandardMaterial({ color: 0xcfc4ab })
+  );
+  heldProp.position.set(0, -ARM_HEIGHT * 0.55, 0.09);
+  heldProp.visible = false;
+  arms[1].add(heldProp);
+
   // Stashed on the group (rather than returned separately) so every
   // existing caller that treats buildHumanoid's return value as a plain
   // THREE.Group to position/add-to-scene keeps working untouched.
   group.userData.legs = legs;
   group.userData.arms = arms;
   group.userData.walkPhase = 0;
+  group.userData.cleanPhase = 0;
+  group.userData.heldProp = heldProp;
 
   return group;
 }
@@ -123,4 +147,79 @@ export function setSitPose(group, sitting) {
   if (!legs) return;
   legs[0].rotation.x = sitting ? SIT_BEND : 0;
   legs[1].rotation.x = sitting ? SIT_BEND : 0;
+}
+
+// Leaning over a console/workbench: a small forward tilt of the whole rig
+// (there's no separate torso pivot, so tilting the group is the cheap
+// equivalent) plus both arms down toward the work surface. Standing, not
+// combined with setSitPose.
+export function setLeanPose(group, leaning) {
+  const { arms } = group.userData;
+  if (!arms) return;
+  group.rotation.x = leaning ? LEAN_TILT : 0;
+  arms[0].rotation.x = leaning ? LEAN_ARM : 0;
+  arms[1].rotation.x = leaning ? LEAN_ARM : 0;
+}
+
+// Arms raised in front, as if holding the prop from setHoldingProp up to
+// read it. Meant to be combined with setSitPose(group, true) for "sitting
+// and reading/taking notes"; the caller (js/crew-behavior.js) is
+// responsible for calling both.
+export function setReadPose(group, reading) {
+  const { arms } = group.userData;
+  if (!arms) return;
+  arms[0].rotation.x = reading ? READ_ARM : 0;
+  arms[1].rotation.x = reading ? READ_ARM : 0;
+}
+
+export function setHoldingProp(group, holding) {
+  const { heldProp } = group.userData;
+  if (heldProp) heldProp.visible = !!holding;
+}
+
+// Lying flat for sleep: tips the whole rig 90 degrees about its own
+// feet-origin, which lands it flat along +Z at floor height. The caller
+// is responsible for raising position.y to the berth's mattress height —
+// this only handles the rotation, the same division of labor as
+// PlayerController.sitAt handling the seat's y-drop itself.
+export function setSleepPose(group, sleeping) {
+  group.rotation.x = sleeping ? -Math.PI / 2 : 0;
+}
+
+// Repeated wipe/sweep motion at a fixed spot: one arm swings back and
+// forth on a sine, phase-accumulated by dt like the walk cycle. Call every
+// frame while the activity holds; stopCleanCycle resets it on exit.
+export function stepCleanCycle(group, dt) {
+  const { arms } = group.userData;
+  if (!arms) return;
+  group.userData.cleanPhase += dt * CLEAN_HZ * Math.PI * 2;
+  arms[1].rotation.x = CLEAN_ARM_BASE + Math.sin(group.userData.cleanPhase) * CLEAN_ARM_SWING;
+}
+
+export function stopCleanCycle(group) {
+  const { arms } = group.userData;
+  if (!arms) return;
+  group.userData.cleanPhase = 0;
+  arms[1].rotation.x = 0;
+}
+
+// A brief, purely cosmetic trip-and-recover: `progress` runs 0 -> 1 across
+// the stumble's duration, driving a half-sine so the dip eases in and back
+// out rather than snapping. Both legs kick and the whole rig wobbles
+// sideways; no position or state change, see js/crew-behavior.js.
+export function applyStumble(group, progress) {
+  const { legs } = group.userData;
+  if (!legs) return;
+  const amount = Math.sin(Math.min(Math.max(progress, 0), 1) * Math.PI);
+  legs[0].rotation.x = amount * 0.5;
+  legs[1].rotation.x = -amount * 0.3;
+  group.rotation.z = amount * 0.25;
+}
+
+export function clearStumble(group) {
+  const { legs } = group.userData;
+  if (!legs) return;
+  legs[0].rotation.x = 0;
+  legs[1].rotation.x = 0;
+  group.rotation.z = 0;
 }
