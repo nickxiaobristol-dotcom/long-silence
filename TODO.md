@@ -127,3 +127,63 @@ Corridor sweep and the north wall either side of the hatch), and
 all relationship choices, all 3 decisions, cross-crew reactions, zero
 console errors — with a Crew Quarters visit added to its per-room
 screenshot pass.
+
+## Post-v1: Movement & interaction pass
+
+Four features layered on top of the static v1 slice, none of which touch
+dialogue content, decision logic, or collision: walking animation,
+autonomous NPC wandering, object interaction, and dialogue speech bubbles.
+
+**Walking animation** (`js/character.js`): `buildHumanoid` now builds each
+leg/arm as a hip/shoulder pivot Group with the limb mesh hung underneath,
+so a rotation swings it like a real pendulum instead of about its own
+middle. `stepWalkCycle(group, dt, moving)` phase-accumulates a sine per
+frame to swing legs in opposing phase (arms opposite the legs, at 80% the
+swing) while `moving` is true, and snaps straight back to the neutral pose
+the instant it goes false. `js/player.js` and the per-frame crew sync in
+`js/main.js` both call it off the same shared rig, so the player and all 5
+crew animate identically.
+
+**Autonomous NPC movement** (`js/crew-behavior.js`, new): each crew member
+steps between 2-3 hand-placed waypoints inside their own room (Corwin
+between the reactor and his workbench, Amara circuits the Cargo Bay, etc.),
+pausing 2.5-5.5s at each stop, with `isWalkable` checked every step as a
+second guard against ever wandering into a doorway. `js/crew.js` now sets
+a live `curX`/`curZ`/`facing` per member at module load (kept separate
+from the fixed spawn `x`/`z`, which decorations.js and existing tests
+still key off), and `findNearbyCrew` was switched to check the live
+position — the "Press E to talk" range check now tracks a crew member
+wherever they've wandered to, not just their spawn point. Opening a
+conversation calls `setTalking`, which freezes that member and turns them
+to face the player until the conversation ends.
+
+**Object interaction** (`js/interactables.js`, new): decorations.js's
+props are deliberately merged into static per-room buckets that can't be
+moved/recolored/hidden afterward, so interactables live as their own small
+live objects instead, the same way crew/player already sit on top of the
+static ship. Four interactables: sit in the Cockpit's pilot seat or a
+Common Area mess stool (bends the sitter's rig into a seated pose, freezes
+player movement until standing back up), power up the Engine Room's
+diagnostic console (a new indicator light swaps color), and open a
+standalone footlocker in the Cargo Bay (lid rotates open on a hinge). A
+new `#action-prompt` element mirrors the existing "Press E to talk" prompt
+pattern for "Press F to ...".
+
+**Dialogue speech bubbles** (`js/main.js`, `css/style.css`): a small
+"…" bubble is projected from the speaking crew member's live head position
+(3D-to-screen via `Vector3.project(camera)`, recomputed every frame) to an
+absolutely-positioned `#speech-bubble` div, shown for as long as the
+dialogue panel is open. Purely decorative on top of the existing dialogue
+UI — carries no text of its own and never touches dialogue state.
+
+Covered by three new test files (`test/crew-behavior.test.mjs`,
+`test/interactables.test.mjs`, plus new cases in `test/crew.test.mjs`
+asserting `findNearbyCrew` uses live position, not spawn position) —
+`npm test` is 55/55. Verified headlessly end-to-end in
+`test/feature-pass-verify.mjs` (Playwright, run manually, not a project
+dependency): confirmed leg rotation swings in opposing phase while moving
+and resets to exactly 0 at idle, confirmed a crew member displaces >1m
+from spawn autonomously and "Press E to talk" still finds them there,
+confirmed sitting in the pilot's seat flips `player.sitting` and bends the
+rig, and confirmed the speech bubble appears/disappears with the dialogue
+panel — zero console or page errors throughout.
