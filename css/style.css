@@ -38,6 +38,7 @@ html, body {
   font-size: 13px;
   color: #e8e8e8;
   pointer-events: none;
+  z-index: 20;
 }
 
 #interact-prompt {
@@ -68,6 +69,7 @@ html, body {
   letter-spacing: 0.05em;
   pointer-events: none;
   animation: speech-bob 1.4s ease-in-out infinite;
+  z-index: 20;
 }
 
 #speech-bubble::after {
@@ -96,6 +98,7 @@ html, body {
   border: 1px solid #2a333b;
   border-radius: 6px;
   padding: 16px 20px;
+  z-index: 20;
 }
 
 #dialogue-speaker {
@@ -147,6 +150,7 @@ html, body {
   font-size: 13px;
   color: #e8e8e8;
   pointer-events: none;
+  z-index: 20;
 }
 
 #flight-readout {
@@ -167,4 +171,5 @@ html, body {
   inset: 0;
   background: rgba(200, 40, 30, 0.28);
   pointer-events: none;
+  z-index: 20;
 }

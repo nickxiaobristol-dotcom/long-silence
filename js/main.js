@@ -255,6 +255,11 @@ window.__lsPlayer = player;
 // API. Nothing in the game reads this either.
 window.__lsCrew = CREW;
 
+// Same rationale again: a read-only handle so test/touch-controls-verify.mjs
+// can assert flight throttle/yaw/pitch state directly instead of scraping
+// the HUD readout string. Nothing in the game reads this either.
+window.__lsFlight = flight;
+
 // A crew member's berth sits at floor height; this is roughly the
 // mattress top (see props.js's berth()), so lying down doesn't clip into
 // it or float above it.

@@ -1,0 +1,59 @@
+/* On-screen touch controls (js/touch-controls.js), only injected on
+   touch-capable devices. Fixed to the viewport, semi-transparent, standard
+   mobile-HUD joystick styling; the wrapper is pointer-events:none so it
+   never blocks clicks/taps anywhere except the actual stick/button hit
+   areas in the bottom corners. */
+
+#touch-controls {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.tc-stick,
+.tc-button {
+  position: absolute;
+  bottom: 24px;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.tc-bottom-left {
+  left: 24px;
+}
+
+.tc-bottom-right {
+  right: 24px;
+}
+
+.tc-stick .tc-base {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgba(20, 26, 32, 0.35);
+  border: 2px solid rgba(190, 210, 220, 0.35);
+}
+
+.tc-stick .tc-nub {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 52px;
+  height: 52px;
+  margin: -26px 0 0 -26px;
+  border-radius: 50%;
+  background: rgba(232, 232, 232, 0.55);
+  border: 1px solid rgba(232, 232, 232, 0.75);
+}
+
+.tc-button {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: rgba(20, 26, 32, 0.4);
+  border: 2px solid rgba(190, 210, 220, 0.4);
+}

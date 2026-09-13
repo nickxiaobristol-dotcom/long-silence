@@ -238,3 +238,55 @@ Area mess table, caught a crew member mid-activity (sitting) in a
 screenshot, confirmed "Press E to talk" still opens dialogue on a crew
 member mid-activity, and ran an extended session (observing an actual
 stumble along the way) with zero console or page errors throughout.
+
+## Post-v1: Touch controls for phone browsers
+
+Input was 100% keyboard+mouse even though `index.html` already shipped a
+mobile viewport meta tag. `js/touch-controls.js` (new) feature-detects
+touch (`"ontouchstart" in window || navigator.maxTouchPoints > 0`) and, only
+then, injects an on-screen virtual joystick + interact button for ship
+exploration and a throttle + heading joystick for flight mode, swapping
+between the two by watching `#flight-hud`'s existing `hidden` attribute
+(the same flag `main.js`'s enterFlightMode/exitFlightMode already flip) via
+a `MutationObserver`. Styling lives in `css/touch-controls.css`, linked
+from `index.html` alongside the existing stylesheet.
+
+Rather than reaching into `player.js`/`flight.js` state directly, every
+control dispatches synthetic `KeyboardEvent`s with the same `code` values
+a physical key press uses (`KeyW`/`KeyA`/`KeyS`/`KeyD` for movement,
+`ArrowLeft`/`ArrowRight`/`ArrowUp`/`ArrowDown` for heading, `KeyE`/`KeyF`
+for interact), so the existing `window.addEventListener("keydown"/"keyup",
+...)` listeners in both files populate their own `pressed` Sets exactly as
+a real keyboard would — this file never touches their internal state, and
+keyboard/mouse input keeps working completely unchanged alongside it (both
+can drive the game at the same time). The interact button reads whichever
+of `#action-prompt`/`#interact-prompt` is currently shown to decide between
+KeyF and KeyE, matching whatever the player could physically press. Dialogue
+advance needed no new code: `#dialogue-choices` `<li>` entries already only
+have `click` listeners, and a tap on a real touch device fires a
+synthetic `click` for free.
+
+One deliberate deviation from a literal "mouse-look" touch control: a grep
+across every non-vendor file in `js/` turned up no mouse/pointer-drag
+camera-look listener anywhere — the ship-exploration camera is a fixed
+follow-cam (`player.js`'s `_syncCamera`) and flight heading comes from
+discrete keys, not a drag gesture. There was nothing to mirror, so no
+touch "look" zone was invented; touch only adds movement + the contextual
+interact tap, matching what the game's mouse input actually does today
+(nothing, for camera control).
+
+`npm test` is unaffected at 85/85 (touch input is DOM/UI, no new unit
+tests). Verified headlessly in `test/touch-controls-verify.mjs`
+(Playwright, run manually, not a project dependency) with a real touch
+emulation context (`hasTouch: true, isMobile: true`, 390x844 @3x): the
+on-screen joystick actually moves the player (confirmed via position and
+by reaching Dessa's live position and getting the "Press E to talk"
+prompt), tapping the interact button opens her dialogue, tapping a
+dialogue choice advances/closes the conversation exactly like a click, and
+— after using the keyboard to reach and sit in the pilot's seat, proving
+keyboard input still works inside a touch-enabled context — the touch
+throttle and heading sticks measurably move `flight.throttle` and
+`flight.state.yaw`. A second, plain desktop-viewport context (no touch
+emulation) confirmed `#touch-controls` never gets injected there and that
+keyboard movement/interact and mouse dialogue clicks are completely
+unaffected. Zero console or page errors across both passes.
