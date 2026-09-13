@@ -341,10 +341,12 @@ async function main() {
 
     section("Touch flight heading");
     const yawBefore = await page.evaluate(() => window.__lsFlight.state.yaw);
-    const hPoint = await pushStick(page, "#tc-heading .tc-base", 1, 0); // push right = ArrowRight = yawRight
+    // push right = ArrowRight = yawLeft (js/flight.js's KEY_MAP swaps
+    // Left/Right so the turn matches what's on screen), so yaw decreases.
+    const hPoint = await pushStick(page, "#tc-heading .tc-base", 1, 0);
     await waitMs(600);
     const yawDuring = await page.evaluate(() => window.__lsFlight.state.yaw);
-    check(yawDuring > yawBefore, `touch heading stick changed yaw (${yawBefore.toFixed(3)} -> ${yawDuring.toFixed(3)})`);
+    check(yawDuring < yawBefore, `touch heading stick changed yaw (${yawBefore.toFixed(3)} -> ${yawDuring.toFixed(3)})`);
     await releaseStick(page, hPoint);
 
     section("Exit flight mode and confirm exploration controls return");

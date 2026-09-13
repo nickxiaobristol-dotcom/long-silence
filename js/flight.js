@@ -30,8 +30,12 @@ const KEY_MAP = {
   ArrowUp: "pitchDown",
   KeyS: "thrustDown",
   ArrowDown: "pitchUp",
-  ArrowLeft: "yawLeft",
-  ArrowRight: "yawRight",
+  // Yaw was backwards on screen (Right turned the nose left and vice
+  // versa) — the chase camera's lookAt basis ends up mirrored relative to
+  // world yaw, so Left/Right are swapped here to match what they turn on
+  // screen rather than flipping the underlying yaw math.
+  ArrowLeft: "yawRight",
+  ArrowRight: "yawLeft",
 };
 
 function buildWarpEffect() {
