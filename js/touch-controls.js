@@ -220,7 +220,12 @@ function init() {
   function syncMode() {
     const flying = !!flightHud && !flightHud.hidden;
     moveStick.style.display = flying ? "none" : "";
-    interactBtn.style.display = flying ? "none" : "";
+    // interactBtn stays visible in flight mode too: it's the only touch
+    // control wired to fire KeyF, and KeyF is how the player stands up out
+    // of the pilot's seat (main.js's handleInteract). Hiding it here left
+    // touch users with no way to ever exit flight mode. It shifts up via
+    // .tc-flying so it doesn't sit under the heading stick.
+    interactBtn.classList.toggle("tc-flying", flying);
     throttleStick.style.display = flying ? "" : "none";
     headingStick.style.display = flying ? "" : "none";
   }

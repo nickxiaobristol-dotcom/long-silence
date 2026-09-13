@@ -57,3 +57,10 @@
   background: rgba(20, 26, 32, 0.4);
   border: 2px solid rgba(190, 210, 220, 0.4);
 }
+
+/* In flight mode the interact button stays visible (it's how you stand up
+   out of the pilot's seat) but the heading stick now occupies its usual
+   bottom-right spot, so it stacks above it instead of overlapping. */
+.tc-button.tc-flying {
+  bottom: 160px;
+}
