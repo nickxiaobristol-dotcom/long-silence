@@ -33,6 +33,7 @@ import {
   resolveRelationshipChoice,
   resolveDecision,
 } from "./dialogue.js";
+import { FlightController } from "./flight.js";
 
 const container = document.getElementById("scene-container");
 const interactPrompt = document.getElementById("interact-prompt");
@@ -42,6 +43,9 @@ const dialoguePanel = document.getElementById("dialogue-panel");
 const dialogueSpeaker = document.getElementById("dialogue-speaker");
 const dialogueLine = document.getElementById("dialogue-line");
 const dialogueChoices = document.getElementById("dialogue-choices");
+const flightHud = document.getElementById("flight-hud");
+const flightReadout = document.getElementById("flight-readout");
+const flightFlash = document.getElementById("flight-flash");
 
 const scene = new THREE.Scene();
 
@@ -69,20 +73,28 @@ buildInteractables(scene);
 initCrewBehavior();
 
 // Start in the Common Area, the ship's central hub.
-const player = new PlayerController(camera, 1, 0);
-player.addTo(scene);
+const player = new PlayerController(camera, 1, 0);player.addTo(scene);
+
+// Flight mode: a second, self-contained scene/camera (its own Sol system,
+// exterior ship, asteroid field) reusing the same renderer — see the
+// enterFlightMode/exitFlightMode toggle and animate()'s branch below.
+// Built once up front rather than lazily so the first "take the helm"
+// press doesn't stall on scene construction.
+const flight = new FlightController();
+let flightModeActive = false;
 
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
+  flight.camera.aspect = window.innerWidth / window.innerHeight;
+  flight.camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
 // Step 4: branching dialogue. dialogueState persists relationship/history
 // per crew member for the whole session; the engine in dialogue.js picks
 // context-appropriate lines from the content bank in dialogue-data.js.
-const dialogueState = createDialogueState();
-let dialogueOpen = false;
+const dialogueState = createDialogueState();let dialogueOpen = false;
 let nearbyCrew = null;
 let activeMember = null;
 
@@ -177,8 +189,28 @@ function closeDialogue() {
 let sittingSeatId = null;
 let nearbyInteractable = null;
 
+// Flight mode's entry point: the pilot's seat already exists as a "sit"
+// interactable from the movement & interaction pass — sitting down at the
+// helm and taking the ship out are the same action, so pressing F there
+// does both instead of adding a second, redundant control. Every other
+// seat (the mess stool) keeps its plain sit-down behavior untouched.
+function enterFlightMode() {
+  flightModeActive = true;
+  flight.activate();
+  interactPrompt.hidden = true;
+  flightHud.hidden = false;
+}
+
+function exitFlightMode() {
+  flightModeActive = false;
+  flight.deactivate();
+  flightHud.hidden = true;
+  flightFlash.hidden = true;
+}
+
 function handleInteract() {
   if (sittingSeatId) {
+    if (sittingSeatId === "pilot_seat" && flightModeActive) exitFlightMode();
     toggleInteractable(sittingSeatId);
     player.standUp();
     sittingSeatId = null;
@@ -193,6 +225,7 @@ function handleInteract() {
     );
     player.sitAt(nearbyInteractable.x, nearbyInteractable.z, facingAngle);
     sittingSeatId = nearbyInteractable.id;
+    if (nearbyInteractable.id === "pilot_seat") enterFlightMode();
   }
 }
 
@@ -342,6 +375,15 @@ function animate() {
     speechBubble.style.top = `${(-_headPos.y * 0.5 + 0.5) * window.innerHeight}px`;
   }
 
-  renderer.render(scene, camera);
+  if (flightModeActive) {
+    flight.update(dt);
+    flightReadout.textContent = `Throttle ${Math.round(flight.throttle * 100)}%  ·  ${Math.round(flight.speed)} units/s${
+      flight.warping ? "  ·  LIGHT SPEED" : ""
+    }`;
+    flightFlash.hidden = !flight.flashing(Date.now());
+    renderer.render(flight.scene, flight.camera);
+  } else {
+    renderer.render(scene, camera);
+  }
 }
 animate();
