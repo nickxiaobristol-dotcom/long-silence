@@ -24,9 +24,12 @@ const LOOKAHEAD = 40;
 
 const KEY_MAP = {
   KeyW: "thrustUp",
-  ArrowUp: "pitchUp",
+  // Inverted vertical axis (flight-sim convention): Up pitches the nose
+  // down, Down pitches it up. Applies to the touch heading stick too,
+  // since it drives the same ArrowUp/ArrowDown codes.
+  ArrowUp: "pitchDown",
   KeyS: "thrustDown",
-  ArrowDown: "pitchDown",
+  ArrowDown: "pitchUp",
   ArrowLeft: "yawLeft",
   ArrowRight: "yawRight",
 };
