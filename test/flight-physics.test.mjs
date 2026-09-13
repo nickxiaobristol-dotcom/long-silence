@@ -1,7 +1,6 @@
 // Pure flight-mode state machine (js/flight-physics.js): throttle/heading
-// integration and the asteroid-hit collision response. No THREE involved,
-// same split js/ship.js's isWalkable gets tested with in
-// test/decorations.test.mjs.
+// integration. No THREE involved, same split js/ship.js's isWalkable gets
+// tested with in test/decorations.test.mjs.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -13,8 +12,6 @@ import {
   throttleToSpeed,
   headingVector,
   stepFlight,
-  applyAsteroidHit,
-  isFlashing,
   isWarping,
 } from "../js/flight-physics.js";
 
@@ -63,15 +60,4 @@ test("isWarping is true only once throttle reaches WARP_THROTTLE", () => {
   assert.equal(isWarping({ throttle: WARP_THROTTLE - 0.01 }), false);
   assert.equal(isWarping({ throttle: WARP_THROTTLE }), true);
   assert.equal(isWarping({ throttle: 1 }), true);
-});
-
-test("applyAsteroidHit sheds speed, knocks the ship back, and starts a flash window", () => {
-  const state = { ...createFlightState(10, 0, 10), yaw: 0, pitch: 0, throttle: 1, speed: LIGHT_SPEED };
-  const hit = applyAsteroidHit(state, 1000);
-  assert.ok(hit.throttle < state.throttle);
-  assert.ok(hit.speed < state.speed);
-  // Heading is +Z here, so knockback along -heading pushes z down.
-  assert.ok(hit.z < state.z);
-  assert.equal(isFlashing(hit, 1000), true);
-  assert.equal(isFlashing(hit, hit.flashUntil + 1), false);
 });

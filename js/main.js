@@ -45,7 +45,6 @@ const dialogueLine = document.getElementById("dialogue-line");
 const dialogueChoices = document.getElementById("dialogue-choices");
 const flightHud = document.getElementById("flight-hud");
 const flightReadout = document.getElementById("flight-readout");
-const flightFlash = document.getElementById("flight-flash");
 
 const scene = new THREE.Scene();
 
@@ -76,8 +75,8 @@ initCrewBehavior();
 const player = new PlayerController(camera, 1, 0);player.addTo(scene);
 
 // Flight mode: a second, self-contained scene/camera (its own Sol system,
-// exterior ship, asteroid field) reusing the same renderer — see the
-// enterFlightMode/exitFlightMode toggle and animate()'s branch below.
+// exterior ship) reusing the same renderer — see the enterFlightMode/
+// exitFlightMode toggle and animate()'s branch below.
 // Built once up front rather than lazily so the first "take the helm"
 // press doesn't stall on scene construction.
 const flight = new FlightController();
@@ -205,7 +204,6 @@ function exitFlightMode() {
   flightModeActive = false;
   flight.deactivate();
   flightHud.hidden = true;
-  flightFlash.hidden = true;
 }
 
 function handleInteract() {
@@ -385,7 +383,6 @@ function animate() {
     flightReadout.textContent = `Throttle ${Math.round(flight.throttle * 100)}%  ·  ${Math.round(flight.speed)} units/s${
       flight.warping ? "  ·  LIGHT SPEED" : ""
     }`;
-    flightFlash.hidden = !flight.flashing(Date.now());
     renderer.render(flight.scene, flight.camera);
   } else {
     renderer.render(scene, camera);

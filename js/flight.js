@@ -1,23 +1,14 @@
 import * as THREE from "three";
-import {
-  createFlightState,
-  stepFlight,
-  applyAsteroidHit,
-  isWarping,
-  isFlashing,
-  headingVector,
-} from "./flight-physics.js";
+import { createFlightState, stepFlight, isWarping, headingVector } from "./flight-physics.js";
 import { buildShipExterior } from "./ship-exterior.js";
 import { buildSolarSystem, spinPlanet, PLANETS, SYSTEM_END } from "./solar-system.js";
-import { createField, stepField, buildAsteroidField, syncAsteroidMeshes } from "./asteroids.js";
 
 // THREE-side wiring for flight mode: owns the flight scene/camera, drives
 // js/flight-physics.js's pure state from keyboard input, and positions the
-// ship/camera/warp effect/asteroid meshes off it each frame. Mirrors the
-// split js/player.js keeps from js/ship.js — physics stays pure and
-// testable, this is just the render glue.
+// ship/camera/warp effect off it each frame. Mirrors the split
+// js/player.js keeps from js/ship.js — physics stays pure and testable,
+// this is just the render glue.
 
-const SHIP_COLLISION_RADIUS = 5;
 const CAMERA_BACK = 16;
 const CAMERA_UP = 5;
 const LOOKAHEAD = 40;
@@ -88,25 +79,16 @@ export class FlightController {
     window.addEventListener("keydown", this._onKeyDown);
     window.addEventListener("keyup", this._onKeyUp);
 
-    const forward = headingVector(this.state.yaw, this.state.pitch);
-    this.field = createField(this.state, forward);
-    this.asteroidMeshes = buildAsteroidField(this.scene, this.field);
-
-    this._justCollided = false;
     this._syncVisuals();
   }
 
   // Re-armed every time the player takes the helm: a fresh flight state
-  // and asteroid field near a fixed start point just outside the ship,
   // rather than resuming wherever a previous flight left off — flight mode
   // is a self-contained excursion, not a persistent position to track.
   activate() {
     this.active = true;
     this.pressed.clear();
     this.state = createFlightState();
-    const forward = headingVector(this.state.yaw, this.state.pitch);
-    this.field = createField(this.state, forward);
-    syncAsteroidMeshes(this.asteroidMeshes, this.field, 0);
     this._syncVisuals();
   }
 
@@ -127,10 +109,6 @@ export class FlightController {
     return isWarping(this.state);
   }
 
-  flashing(now = Date.now()) {
-    return isFlashing(this.state, now);
-  }
-
   update(dt) {
     if (!this.active) return;
 
@@ -140,13 +118,6 @@ export class FlightController {
       if (action) input[action] = true;
     }
     this.state = stepFlight(this.state, input, dt);
-
-    const forward = headingVector(this.state.yaw, this.state.pitch);
-    const result = stepField(this.field, this.state, SHIP_COLLISION_RADIUS, forward, dt);
-    this.field = result.field;
-    this._justCollided = !!result.collided;
-    if (result.collided) this.state = applyAsteroidHit(this.state, Date.now());
-    syncAsteroidMeshes(this.asteroidMeshes, this.field, dt);
 
     for (const planet of PLANETS) spinPlanet(this.planetGroups[planet.name], dt);
 

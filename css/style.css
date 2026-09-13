@@ -164,12 +164,3 @@ html, body {
   font-size: 12px;
 }
 
-/* Brief red overlay flash on an asteroid hit — toggled in js/main.js off
-   js/flight-physics.js's isFlashing, never left visible. */
-#flight-flash {
-  position: absolute;
-  inset: 0;
-  background: rgba(200, 40, 30, 0.28);
-  pointer-events: none;
-  z-index: 20;
-}

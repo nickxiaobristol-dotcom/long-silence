@@ -1,7 +1,7 @@
 // Sol system layout data (js/solar-system.js): real order and relative
 // distance ratios, preserved through one documented linear scale factor.
-// The THREE mesh builders aren't tested directly, same convention as
-// test/asteroids.test.mjs.
+// The THREE mesh builders aren't tested directly, same convention used
+// elsewhere for THREE-side code (see js/decorations.js).
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
