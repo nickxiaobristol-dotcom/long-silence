@@ -15,12 +15,9 @@ const LOOKAHEAD = 40;
 
 const KEY_MAP = {
   KeyW: "thrustUp",
-  // Inverted vertical axis (flight-sim convention): Up pitches the nose
-  // down, Down pitches it up. Applies to the touch heading stick too,
-  // since it drives the same ArrowUp/ArrowDown codes.
-  ArrowUp: "pitchDown",
+  ArrowUp: "pitchUp",
   KeyS: "thrustDown",
-  ArrowDown: "pitchUp",
+  ArrowDown: "pitchDown",
   // Yaw was backwards on screen (Right turned the nose left and vice
   // versa) — the chase camera's lookAt basis ends up mirrored relative to
   // world yaw, so Left/Right are swapped here to match what they turn on
