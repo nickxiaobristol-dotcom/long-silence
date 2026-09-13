@@ -38,10 +38,12 @@ const server = http.createServer((req, res) => {
 
   fs.readFile(filePath, (err, data) => {
     if (err) {
+      console.log(`${new Date().toISOString()} ${req.socket.remoteAddress} 404 ${urlPath}`);
       res.writeHead(404);
       res.end("Not found");
       return;
     }
+    console.log(`${new Date().toISOString()} ${req.socket.remoteAddress} 200 ${urlPath}`);
     res.writeHead(200, {
       "Content-Type": MIME[path.extname(filePath)] || "application/octet-stream",
       "Cache-Control": "no-store",
